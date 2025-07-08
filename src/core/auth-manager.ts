@@ -278,7 +278,7 @@ class AuthManager extends EventEmitter {
     }
 
     /**
-     * Generates a PubQ-compatible JWT token
+     * Generates a QPub-compatible JWT token
      * Medium-low level of security
      * Should be called from server-side only
      * Note: The permissions are not validated by the server, so make sure to set the correct permissions that align with the API key or use the issueToken method instead
@@ -319,7 +319,7 @@ class AuthManager extends EventEmitter {
     }
 
     /**
-     * Issues a new JWT token from PubQ server
+     * Issues a new JWT token from QPub server
      * Medium level of security
      * Should be called from server-side only
      * @param options - Token options
@@ -347,7 +347,7 @@ class AuthManager extends EventEmitter {
             const url = `${baseUrl}/key/${apiKeyId}/token/issue`;
 
             const response = await this.httpClient.post<{ token: string }>(
-                url, // PubQ token endpoint
+                url, // QPub token endpoint
                 options, // Token options
                 {
                     Authorization: `Basic ${btoa(apiKey)}`,
@@ -356,7 +356,7 @@ class AuthManager extends EventEmitter {
 
             if (!response.token) {
                 return this.handleError(
-                    new Error("Invalid token response from PubQ server"),
+                    new Error("Invalid token response from QPub server"),
                     "Token issuance failed"
                 );
             }
@@ -425,10 +425,10 @@ class AuthManager extends EventEmitter {
     }
 
     /**
-     * Requests a token from PubQ server using a TokenRequest
+     * Requests a token from QPub server using a TokenRequest
      * Should be called from client-side only
      * @param request - The token request object from auth server
-     * @returns Promise<AuthResponse> PubQ server's response containing the token
+     * @returns Promise<AuthResponse> QPub server's response containing the token
      */
     public async requestToken(request: TokenRequest): Promise<AuthResponse> {
         try {

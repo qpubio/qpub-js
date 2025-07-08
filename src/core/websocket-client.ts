@@ -1,10 +1,10 @@
-import { PubQWebSocket } from "interfaces/websocket.interface";
+import { QPubWebSocket } from "interfaces/websocket.interface";
 import { Logger } from "../utils/logger";
 
 class WebSocketClient {
     private static instances: Map<string, WebSocketClient> = new Map();
     private instanceId: string;
-    private socket: PubQWebSocket | null = null;
+    private socket: QPubWebSocket | null = null;
     private WebSocketImplementation: any;
     private logger: Logger;
 
@@ -38,7 +38,7 @@ class WebSocketClient {
         return WebSocketClient.instances.get(instanceId)!;
     }
 
-    public getSocket(): PubQWebSocket | null {
+    public getSocket(): QPubWebSocket | null {
         return this.socket;
     }
 
@@ -49,7 +49,7 @@ class WebSocketClient {
         }
 
         this.logger.info(`Connecting to WebSocket at ${url}`);
-        this.socket = new this.WebSocketImplementation(url) as PubQWebSocket;
+        this.socket = new this.WebSocketImplementation(url) as QPubWebSocket;
 
         this.socket.onerror = (error: Event) => {
             this.logger.error("WebSocket error:", error);

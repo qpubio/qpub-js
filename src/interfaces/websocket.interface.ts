@@ -1,4 +1,4 @@
-export interface PubQWebSocket {
+export interface QPubWebSocket {
     onopen: ((event: any) => void) | null;
     onclose: ((event: any) => void) | null;
     onmessage: ((event: any) => void) | null;

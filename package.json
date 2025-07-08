@@ -1,50 +1,50 @@
 {
-  "name": "pubq",
-  "version": "2.0.0",
-  "description": "PubQ JavaScript: A client library for real-time messaging on browsers, Node.js, and other platforms",
-  "main": "build/pubq.cjs.js",
-  "module": "build/pubq.esm.js",
-  "browser": "build/pubq.umd.js",
-  "files": [
-    "build/**",
-    "src/**"
-  ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup -c"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pubqio/pubq-js.git"
-  },
-  "keywords": [
-    "pubq",
-    "pubsub",
-    "channels",
-    "websocket",
-    "realtime",
-    "messaging",
-    "communication"
-  ],
-  "author": "PubQ",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/pubqio/pubq-js/issues"
-  },
-  "homepage": "https://github.com/pubqio/pubq-js#readme",
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^28.0.1",
-    "@rollup/plugin-node-resolve": "^15.3.0",
-    "@rollup/plugin-terser": "^0.4.4",
-    "@rollup/plugin-typescript": "^12.1.1",
-    "@types/ws": "^8.5.12",
-    "rollup": "^2.79.2",
-    "ts-loader": "^9.5.1",
-    "tslib": "^2.8.0",
-    "typedoc": "^0.26.10",
-    "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "ws": "^8.18.0"
-  }
+    "name": "qpub",
+    "version": "2.0.0",
+    "description": "QPub JavaScript: A client library for real-time messaging on browsers, Node.js, and other platforms",
+    "main": "build/qpub.cjs.js",
+    "module": "build/qpub.esm.js",
+    "browser": "build/qpub.umd.js",
+    "files": [
+        "build/**",
+        "src/**"
+    ],
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "rollup -c"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/qpubio/qpub-js.git"
+    },
+    "keywords": [
+        "qpub",
+        "pubsub",
+        "channels",
+        "websocket",
+        "realtime",
+        "messaging",
+        "communication"
+    ],
+    "author": "QPub",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/qpubio/qpub-js/issues"
+    },
+    "homepage": "https://github.com/qpubio/qpub-js#readme",
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^28.0.1",
+        "@rollup/plugin-node-resolve": "^15.3.0",
+        "@rollup/plugin-terser": "^0.4.4",
+        "@rollup/plugin-typescript": "^12.1.1",
+        "@types/ws": "^8.5.12",
+        "rollup": "^2.79.2",
+        "ts-loader": "^9.5.1",
+        "tslib": "^2.8.0",
+        "typedoc": "^0.26.10",
+        "typescript": "^5.6.3"
+    },
+    "dependencies": {
+        "ws": "^8.18.0"
+    }
 }

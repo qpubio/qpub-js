@@ -2,7 +2,7 @@ import { AuthEvents, ConnectionEvents } from "types/event.type";
 import { EventEmitter } from "./event-emitter";
 import { OptionManager } from "./option-manager";
 import { WebSocketClient } from "./websocket-client";
-import { PubQWebSocket } from "interfaces/websocket.interface";
+import { QPubWebSocket } from "interfaces/websocket.interface";
 import { IncomingConnectionMessage, IncomingMessage } from "interfaces/message.interface";
 import { ActionType } from "types/action.type";
 import { AuthManager } from "./auth-manager";
@@ -17,7 +17,7 @@ class Connection extends EventEmitter {
     private wsClient: WebSocketClient;
     private channelManager: SocketChannelManager;
     private logger: Logger;
-    private socket: PubQWebSocket | null = null;
+    private socket: QPubWebSocket | null = null;
     private reconnectAttempts: number = 0;
     private reconnectTimeout?: NodeJS.Timeout;
     private isReconnecting: boolean = false;

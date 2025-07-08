@@ -45,10 +45,10 @@ export interface Option {
 }
 
 export const DEFAULT_OPTIONS: Option = {
-    httpHost: "rest.pubq.io",
+    httpHost: "rest.qpub.io",
     httpPort: null,
 
-    wsHost: "socket.pubq.io",
+    wsHost: "socket.qpub.io",
     wsPort: null,
 
     isSecure: true,

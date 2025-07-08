@@ -4,23 +4,23 @@ import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 
 export default {
-    input: "src/pubq.ts",
+    input: "src/qpub.ts",
     output: [
         {
-            file: "build/pubq.cjs.js",
+            file: "build/qpub.cjs.js",
             format: "cjs",
             exports: "auto",
             sourcemap: true,
         },
         {
-            file: "build/pubq.esm.js",
+            file: "build/qpub.esm.js",
             format: "esm",
             sourcemap: true,
         },
         {
-            file: "build/pubq.umd.js",
+            file: "build/qpub.umd.js",
             format: "umd",
-            name: "PubQ",
+            name: "QPub",
             exports: "named",
             globals: {
                 ws: "WebSocket",
