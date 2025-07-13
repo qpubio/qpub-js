@@ -27,7 +27,7 @@ yarn add qpub
 Import as ES module:
 
 ```js
-import { QPub } from "qpub";
+import { QPub, Message } from "qpub";
 ```
 
 Import from CDN:
@@ -50,7 +50,7 @@ Subscribe to a channel and listen for any data publishing to receive:
 
 ```js
 let channel = socket.channels.get("my-channel");
-channel.subscribe((message: any) => {
+channel.subscribe((message: Message) => {
     console.log({ message });
 });
 ```
@@ -70,6 +70,69 @@ let channel = rest.channels.get("my-channel");
 
 channel.publish("Hello!");
 ```
+
+Publish batch messages:
+
+```js
+rest.channels
+    .publishBatch(
+        ["myChannel", "another-channel"],
+        [
+            { data: "Hello World 1", event: "fooEvent" },
+            { data: "Hello World 2", event: "barEvent" },
+            { data: "Hello World 3", event: "barEvent" },
+        ]
+    )
+    .then((result) => {
+        console.log(result);
+    })
+    .catch((err) => {
+        console.error(`Error: ${err}`);
+    });
+```
+
+## React Integration
+
+QPub includes built-in React hooks and components for real-time socket connections:
+
+```jsx
+import React from "react";
+import { SocketProvider, useChannel, useConnection, Message } from "qpub/react";
+
+function App() {
+    return (
+        <SocketProvider options={{ apiKey: "YOUR_API_KEY" }}>
+            <ChatRoom />
+        </SocketProvider>
+    );
+}
+
+function ChatRoom() {
+    const { status } = useConnection();
+    const channelResult = useChannel("my-channel", { autoSubscribe: true });
+
+    // TypeScript knows this has full Socket functionality
+    if (channelResult.interface !== "socket") return <div>Loading...</div>;
+
+    const { publish, subscribe, isSubscribed } = channelResult;
+
+    React.useEffect(() => {
+        const handleMessage = (msg: Message) => console.log("Received:", msg);
+        if (!isSubscribed()) subscribe(handleMessage);
+    }, [subscribe, isSubscribed]);
+
+    return (
+        <div>
+            <div>Status: {status}</div>
+            <button onClick={() => publish("Hello from Socket!")}>
+                Send Message
+            </button>
+        </div>
+    );
+}
+```
+
+See [React Documentation](src/react-integration/README.md) for complete guide.
 
 # Development
 

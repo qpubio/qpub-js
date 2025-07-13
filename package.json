@@ -24,7 +24,12 @@
         "websocket",
         "realtime",
         "messaging",
-        "communication"
+        "communication",
+        "chat",
+        "events",
+        "notifications",
+        "react",
+        "hooks"
     ],
     "author": "QPub",
     "license": "MIT",
@@ -37,6 +42,7 @@
         "@rollup/plugin-node-resolve": "^15.3.0",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^12.1.1",
+        "@types/react": "^19.1.8",
         "@types/ws": "^8.5.12",
         "rollup": "^2.79.2",
         "ts-loader": "^9.5.1",
@@ -46,5 +52,29 @@
     },
     "dependencies": {
         "ws": "^8.18.0"
+    },
+    "peerDependencies": {
+        "@types/react": ">=16.8.0",
+        "react": ">=16.8.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "@types/react": {
+            "optional": true
+        }
+    },
+    "exports": {
+        ".": {
+            "import": "./build/qpub.esm.js",
+            "require": "./build/qpub.cjs.js",
+            "types": "./build/qpub.d.ts"
+        },
+        "./react": {
+            "import": "./build/qpub-react.esm.js",
+            "require": "./build/qpub-react.cjs.js",
+            "types": "./build/react-integration/index.d.ts"
+        }
     }
 }
