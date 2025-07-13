@@ -12,14 +12,14 @@ export class Rest {
 
     constructor(options?: Partial<Option>) {
         this.instanceId = `rest_${uuidv7()}`;
-        this.logger = new Logger(this.instanceId, "REST");
-
-        this.logger.debug("Initializing REST instance");
-
         this.optionManager = OptionManager.getInstance(
             this.instanceId,
             options
         );
+        this.logger = new Logger(this.instanceId, "REST");
+
+        this.logger.debug("Initializing REST instance");
+
         this.channels = RestChannelManager.getInstance(this.instanceId);
 
         this.logger.info("Rest instance created");

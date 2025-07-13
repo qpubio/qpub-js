@@ -15,7 +15,8 @@ class HttpClient {
 
     private getDefaultFetch(): typeof fetch {
         if (typeof fetch === "function") {
-            return fetch;
+            // Bind fetch to the global context to avoid "Illegal invocation" errors
+            return fetch.bind(globalThis);
         }
 
         // Node.js environment without global fetch

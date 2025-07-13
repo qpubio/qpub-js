@@ -6,6 +6,10 @@ import { HttpClient } from "./http-client";
 import { AuthManager } from "./auth-manager";
 import { OptionManager } from "./option-manager";
 import { Logger } from "../utils/logger";
+import {
+    DataMessagePayload,
+    RestPublishRequest,
+} from "interfaces/message.interface";
 
 export class SocketChannelManager implements ChannelManager {
     private static instances: Map<string, SocketChannelManager> = new Map();
@@ -126,6 +130,31 @@ export class RestChannelManager implements ChannelManager {
         }
 
         return this.channels.get(channelName)!;
+    }
+
+    public async publishBatch<T = any>(
+        channels: string[],
+        messages: DataMessagePayload[]
+    ): Promise<T> {
+        const headers = this.authManager.getAuthHeaders();
+        const host = this.optionManager.getOption("httpHost");
+        const port = this.optionManager.getOption("httpPort");
+        const isSecure = this.optionManager.getOption("isSecure");
+        const protocol = isSecure ? "https" : "http";
+        const url = `${protocol}://${host}${
+            port ? `:${port}` : ""
+        }/v1/channels/messages`;
+
+        const requestPayload: RestPublishRequest = {
+            channels,
+            messages,
+        };
+
+        this.logger.debug(`Publishing batch to ${url}`);
+        this.logger.debug(`Request payload: ${JSON.stringify(requestPayload)}`);
+        this.logger.debug(`Headers: ${JSON.stringify(headers)}`);
+
+        return await this.httpClient.post<T>(url, requestPayload, headers);
     }
 
     public reset(): void {

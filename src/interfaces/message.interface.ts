@@ -1,4 +1,9 @@
-import { ActionType, OutgoingAction, IncomingAction, ConnectionAction, ChannelAction, ChannelResponseAction } from "types/action.type";
+import {
+    ActionType,
+    OutgoingAction,
+    IncomingAction,
+    ConnectionAction,
+} from "types/action.type";
 
 // Error information interface matching backend protocol
 export interface ErrorInfo {
@@ -37,7 +42,7 @@ export interface ChannelMessage extends BaseMessage {
 export interface DataMessagePayload {
     clientId?: string;
     event?: string;
-    payload?: any;
+    data?: any;
 }
 
 // Data message interface for publishing and receiving messages
@@ -51,9 +56,7 @@ export interface DataMessage extends BaseMessage {
 // REST channel publish request payload interface
 export interface RestPublishRequest {
     channels?: string[];
-    clientId?: string;
-    event?: string;
-    data?: any;
+    messages: DataMessagePayload[];
 }
 
 // Outgoing message types
@@ -96,7 +99,10 @@ export interface IncomingConnectionMessage extends IncomingMessage {
 
 // Incoming channel message
 export interface IncomingChannelMessage extends IncomingMessage {
-    action: ActionType.SUBSCRIBED | ActionType.UNSUBSCRIBED | ActionType.PUBLISHED;
+    action:
+        | ActionType.SUBSCRIBED
+        | ActionType.UNSUBSCRIBED
+        | ActionType.PUBLISHED;
     channel: string;
     subscriptionId?: string;
 }
@@ -114,4 +120,11 @@ export interface IncomingDataMessage extends IncomingMessage {
 export interface ErrorMessage extends IncomingMessage {
     action: ActionType.ERROR;
     error: ErrorInfo;
+}
+
+// Message (For consumer)
+export interface Message extends BaseMessage, DataMessagePayload {
+    id?: string;
+    timestamp?: string;
+    channel: string;
 }

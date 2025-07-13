@@ -2,19 +2,20 @@ import { ActionType } from "types/action.type";
 import { BaseChannel } from "./channel";
 import { WebSocketClient } from "./websocket-client";
 import { ChannelEvents } from "types/event.type";
-import { 
-    IncomingChannelMessage, 
-    OutgoingChannelMessage, 
-    DataMessagePayload, 
+import {
+    IncomingChannelMessage,
+    OutgoingChannelMessage,
+    DataMessagePayload,
     IncomingDataMessage,
-    OutgoingDataMessage
+    OutgoingDataMessage,
+    Message,
 } from "interfaces/message.interface";
 
 export class SocketChannel extends BaseChannel {
     private wsClient: WebSocketClient;
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
-    private messageCallback?: (message: any) => void;
+    private messageCallback?: (message: Message) => void;
     private messageHandler?: (event: MessageEvent) => void;
 
     constructor(name: string, wsClient: WebSocketClient) {
@@ -47,11 +48,45 @@ export class SocketChannel extends BaseChannel {
         socket.addEventListener("message", this.messageHandler);
     }
 
+    /**
+     * Transforms an IncomingDataMessage to an array of consumer Message objects.
+     * Each DataMessagePayload in the messages array becomes a separate Message.
+     */
+    private transformToConsumerMessages(
+        incomingMessage: IncomingDataMessage
+    ): Message[] {
+        const { id, timestamp, channel, action, error, messages } =
+            incomingMessage;
+
+        return messages.map(
+            (messagePayload): Message => ({
+                // Base message fields
+                action,
+                error,
+                // Container message fields
+                id,
+                timestamp,
+                channel,
+                // Individual message payload fields
+                clientId: messagePayload.clientId,
+                event: messagePayload.event,
+                data: messagePayload.data,
+            })
+        );
+    }
+
     private handleMessage(message: any): void {
         switch (message.action) {
             case ActionType.MESSAGE:
                 if (this.isSubscribed()) {
-                    this.messageCallback?.(message as IncomingDataMessage);
+                    const incomingDataMessage = message as IncomingDataMessage;
+                    const consumerMessages =
+                        this.transformToConsumerMessages(incomingDataMessage);
+
+                    // Call the callback for each individual message
+                    consumerMessages.forEach((consumerMessage) => {
+                        this.messageCallback?.(consumerMessage);
+                    });
                 }
                 break;
 
@@ -74,22 +109,26 @@ export class SocketChannel extends BaseChannel {
         }
     }
 
-    public async publish(payload: any, event?: string, clientId?: string): Promise<void> {
+    public async publish(
+        data: any,
+        event?: string,
+        clientId?: string
+    ): Promise<void> {
         if (!this.wsClient.isConnected()) {
             throw new Error("Cannot publish: WebSocket is not connected");
         }
 
         try {
             const messagePayload: DataMessagePayload = {
-                payload,
+                data,
                 event,
-                clientId
+                clientId,
             };
 
             const publishMessage: OutgoingDataMessage = {
                 action: ActionType.PUBLISH,
                 channel: this.name,
-                messages: [messagePayload]
+                messages: [messagePayload],
             };
 
             this.wsClient.send(JSON.stringify(publishMessage));
@@ -99,7 +138,7 @@ export class SocketChannel extends BaseChannel {
         }
     }
 
-    public subscribe(callback: (message: any) => void): void {
+    public subscribe(callback: (message: Message) => void): void {
         if (!this.wsClient.isConnected()) {
             this.pendingSubscribe = true;
             throw new Error("Cannot subscribe: WebSocket is not connected");
@@ -115,7 +154,7 @@ export class SocketChannel extends BaseChannel {
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.SUBSCRIBE,
-            channel: this.name
+            channel: this.name,
         };
         this.wsClient.send(JSON.stringify(actionMessage));
     }
@@ -147,7 +186,7 @@ export class SocketChannel extends BaseChannel {
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.UNSUBSCRIBE,
-            channel: this.name
+            channel: this.name,
         };
         this.wsClient.send(JSON.stringify(actionMessage));
     }
