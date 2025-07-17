@@ -37,8 +37,8 @@ export function SocketProvider({
     }, [socket]);
 
     // Show fallback if socket is not ready
-    if (!contextValue && Fallback) {
-        return <Fallback />;
+    if (!contextValue) {
+        return Fallback ? <Fallback /> : null;
     }
 
     return (

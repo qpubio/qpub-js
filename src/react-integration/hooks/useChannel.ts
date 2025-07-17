@@ -65,21 +65,24 @@ export function useChannel(channelName: string): UseChannelReturn {
     // Expose all SocketChannel methods directly
     const subscribe = React.useCallback(
         (callback: (message: Message) => void) => {
-            if (!channel) throw new Error("Channel not available");
-            return channel.subscribe(callback);
+            if (!socket) throw new Error("Socket not available");
+            const socketChannel = socket.channels.get(channelName);
+            return socketChannel.subscribe(callback);
         },
-        [channel]
+        [socket, channelName]
     );
 
     const resubscribe = React.useCallback(async (): Promise<void> => {
-        if (!channel) throw new Error("Channel not available");
-        return channel.resubscribe();
-    }, [channel]);
+        if (!socket) throw new Error("Socket not available");
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.resubscribe();
+    }, [socket, channelName]);
 
     const unsubscribe = React.useCallback(() => {
-        if (!channel) throw new Error("Channel not available");
-        return channel.unsubscribe();
-    }, [channel]);
+        if (!socket) throw new Error("Socket not available");
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.unsubscribe();
+    }, [socket, channelName]);
 
     const publish = React.useCallback(
         async (
@@ -87,36 +90,45 @@ export function useChannel(channelName: string): UseChannelReturn {
             event?: string,
             clientId?: string
         ): Promise<void> => {
-            if (!channel) throw new Error("Channel not available");
-            return channel.publish(data, event, clientId);
+            if (!socket) throw new Error("Socket not available");
+            const socketChannel = socket.channels.get(channelName);
+            return socketChannel.publish(data, event, clientId);
         },
-        [channel]
+        [socket, channelName]
     );
 
     const isSubscribed = React.useCallback(() => {
-        return channel?.isSubscribed() ?? false;
-    }, [channel]);
+        if (!socket) return false;
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.isSubscribed();
+    }, [socket, channelName]);
 
     const isPendingSubscribe = React.useCallback(() => {
-        return channel?.isPendingSubscribe() ?? false;
-    }, [channel]);
+        if (!socket) return false;
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.isPendingSubscribe();
+    }, [socket, channelName]);
 
     const setPendingSubscribe = React.useCallback(
         (pending: boolean) => {
-            if (!channel) throw new Error("Channel not available");
-            return channel.setPendingSubscribe(pending);
+            if (!socket) throw new Error("Socket not available");
+            const socketChannel = socket.channels.get(channelName);
+            return socketChannel.setPendingSubscribe(pending);
         },
-        [channel]
+        [socket, channelName]
     );
 
     const reset = React.useCallback(() => {
-        if (!channel) throw new Error("Channel not available");
-        return channel.reset();
-    }, [channel]);
+        if (!socket) throw new Error("Socket not available");
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.reset();
+    }, [socket, channelName]);
 
     const getName = React.useCallback(() => {
-        return channel?.getName() ?? "";
-    }, [channel]);
+        if (!socket) return "";
+        const socketChannel = socket.channels.get(channelName);
+        return socketChannel.getName();
+    }, [socket, channelName]);
 
     return {
         channel,
