@@ -1,7 +1,12 @@
 import React from "react";
 import { SocketChannel } from "../../core/socket-channel";
-import { ChannelEvents, ChannelEvent } from "../../types/event.type";
-import { UseChannelReturn } from "../context/types";
+import {
+    ChannelEvents,
+    ChannelEvent,
+    ConnectionEvents,
+    ConnectionEvent,
+} from "../../types/event.type";
+import { UseChannelReturn, UseChannelOptions } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 import { Message } from "../../interfaces/message.interface";
 
@@ -9,16 +14,27 @@ import { Message } from "../../interfaces/message.interface";
  * Hook for managing Socket channels with direct SDK method exposure
  *
  * @param channelName - Name of the channel
+ * @param options - Optional configuration including onMessage
  * @returns Channel state and all SDK methods
  */
-export function useChannel(channelName: string): UseChannelReturn {
+export function useChannel(
+    channelName: string,
+    options?: UseChannelOptions
+): UseChannelReturn {
     const { socket } = useSocketContext();
 
     const [channel, setChannel] = React.useState<SocketChannel | null>(null);
     const [status, setStatus] = React.useState<ChannelEvent>("initialized");
     const [error, setError] = React.useState<Error | null>(null);
+    const [connectionStatus, setConnectionStatus] =
+        React.useState<ConnectionEvent>("disconnected");
 
-    // Get the actual SocketChannel from SDK
+    // Calculate ready state - true when both connection and channel are ready
+    const ready = React.useMemo(() => {
+        return connectionStatus === "connected" && status === "initialized";
+    }, [connectionStatus, status]);
+
+    // Get the actual SocketChannel from SDK and track connection
     React.useEffect(() => {
         if (!socket) return;
 
@@ -43,6 +59,14 @@ export function useChannel(channelName: string): UseChannelReturn {
             setError(err);
         };
 
+        // Connection event handlers
+        const handleConnected = () =>
+            setConnectionStatus(ConnectionEvents.CONNECTED);
+        const handleDisconnected = () =>
+            setConnectionStatus(ConnectionEvents.DISCONNECTED);
+        const handleConnectionFailed = () =>
+            setConnectionStatus(ConnectionEvents.FAILED);
+
         // Subscribe to SDK channel events
         socketChannel.on(ChannelEvents.INITIALIZED, handleInitialized);
         socketChannel.on(ChannelEvents.SUBSCRIBING, handleSubscribing);
@@ -50,6 +74,18 @@ export function useChannel(channelName: string): UseChannelReturn {
         socketChannel.on(ChannelEvents.UNSUBSCRIBING, handleUnsubscribing);
         socketChannel.on(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
         socketChannel.on(ChannelEvents.FAILED, handleFailed);
+
+        // Subscribe to connection events
+        socket.connection.on(ConnectionEvents.CONNECTED, handleConnected);
+        socket.connection.on(ConnectionEvents.DISCONNECTED, handleDisconnected);
+        socket.connection.on(ConnectionEvents.FAILED, handleConnectionFailed);
+
+        // Set initial connection status
+        setConnectionStatus(
+            socket.connection.isConnected()
+                ? ConnectionEvents.CONNECTED
+                : ConnectionEvents.DISCONNECTED
+        );
 
         // Cleanup listeners when component unmounts or channel changes
         return () => {
@@ -59,8 +95,32 @@ export function useChannel(channelName: string): UseChannelReturn {
             socketChannel.off(ChannelEvents.UNSUBSCRIBING, handleUnsubscribing);
             socketChannel.off(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
             socketChannel.off(ChannelEvents.FAILED, handleFailed);
+
+            socket.connection.off(ConnectionEvents.CONNECTED, handleConnected);
+            socket.connection.off(
+                ConnectionEvents.DISCONNECTED,
+                handleDisconnected
+            );
+            socket.connection.off(
+                ConnectionEvents.FAILED,
+                handleConnectionFailed
+            );
         };
     }, [socket, channelName]);
+
+    // Auto-subscription effect
+    React.useEffect(() => {
+        if (!options?.onMessage || !ready || !socket) return;
+
+        const socketChannel = socket.channels.get(channelName);
+
+        socketChannel.subscribe(options.onMessage);
+
+        // Cleanup: unsubscribe when ready becomes false or component unmounts
+        return () => {
+            socketChannel.unsubscribe();
+        };
+    }, [ready, options?.onMessage, socket, channelName]);
 
     // Expose all SocketChannel methods directly
     const subscribe = React.useCallback(
@@ -85,11 +145,7 @@ export function useChannel(channelName: string): UseChannelReturn {
     }, [socket, channelName]);
 
     const publish = React.useCallback(
-        async (
-            data: any,
-            event?: string,
-            clientId?: string
-        ): Promise<void> => {
+        async (data: any, event?: string, clientId?: string): Promise<void> => {
             if (!socket) throw new Error("Socket not available");
             const socketChannel = socket.channels.get(channelName);
             return socketChannel.publish(data, event, clientId);
@@ -134,6 +190,7 @@ export function useChannel(channelName: string): UseChannelReturn {
         channel,
         status,
         error,
+        ready,
         subscribe,
         resubscribe,
         unsubscribe,

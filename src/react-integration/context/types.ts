@@ -8,6 +8,11 @@ import { Message } from "../../interfaces/message.interface";
 // Re-export core types for convenience
 export type { Message };
 
+// useChannel options
+export interface UseChannelOptions {
+    onMessage?: (message: Message) => void;
+}
+
 // useChannel return type (Socket-only)
 export interface UseChannelReturn {
     // The actual core SocketChannel instance
@@ -16,6 +21,7 @@ export interface UseChannelReturn {
     // States
     status: ChannelEvent;
     error: Error | null;
+    ready: boolean; // True when both connection and channel are ready
 
     // Core SocketChannel methods
     subscribe: (callback: (message: Message) => void) => void;

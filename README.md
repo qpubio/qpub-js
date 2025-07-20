@@ -93,7 +93,9 @@ rest.channels
 
 ## React Integration
 
-QPub includes built-in React hooks and components for real-time socket connections:
+QPub includes built-in React hooks and components for real-time socket connections. 
+
+Use the `onMessage` option for automatic subscription management:
 
 ```jsx
 import React from "react";
@@ -109,22 +111,18 @@ function App() {
 
 function ChatRoom() {
     const { status } = useConnection();
-    const channelResult = useChannel("my-channel", { autoSubscribe: true });
-
-    // TypeScript knows this has full Socket functionality
-    if (channelResult.interface !== "socket") return <div>Loading...</div>;
-
-    const { publish, subscribe, isSubscribed } = channelResult;
-
-    React.useEffect(() => {
-        const handleMessage = (msg: Message) => console.log("Received:", msg);
-        if (!isSubscribed()) subscribe(handleMessage);
-    }, [subscribe, isSubscribed]);
+    const { ready, publish } = useChannel("my-channel", { 
+        onMessage: (message) => console.log("Received:", message) 
+    });
 
     return (
         <div>
-            <div>Status: {status}</div>
-            <button onClick={() => publish("Hello from Socket!")}>
+            <div>Connection: {status}</div>
+            <div>Ready: {ready ? "✅" : "⏳"}</div>
+            <button 
+                onClick={() => publish("Hello from Socket!")}
+                disabled={!ready}
+            >
                 Send Message
             </button>
         </div>

@@ -23,7 +23,7 @@ export interface Option {
 
     autoConnect?: boolean;
     autoReconnect?: boolean;
-    autoResubscribe?: boolean; // Not used yet
+    autoResubscribe?: boolean;
     autoAuthenticate?: boolean;
 
     connectTimeoutMs?: number;

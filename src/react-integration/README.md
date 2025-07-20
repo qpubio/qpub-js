@@ -10,7 +10,12 @@ npm install qpub react
 
 ## Quick Start
 
-### 1. Basic Setup
+QPub React integration offers two approaches for channel subscriptions:
+
+- **🚀 Auto-Subscribe** (Recommended): Use `onMessage` option for automatic subscription management
+- **⚙️ Manual Control**: Use `subscribe()` method for fine-grained control
+
+### 1. Basic Setup (Auto-Subscribe)
 
 ```tsx
 import React, { useState, useCallback, useEffect } from "react";
@@ -26,20 +31,16 @@ function App() {
 
 function ChatRoom() {
     const [messages, setMessages] = useState<Message[]>([]);
-    const { subscribe, publish, isSubscribed, status } =
-        useChannel("chat-room");
 
     // Handle incoming messages
     const handleMessage = useCallback((message: Message) => {
         setMessages((prev) => [...prev, message]);
     }, []);
 
-    // Subscribe when channel is ready
-    useEffect(() => {
-        if (status === "initialized") {
-            subscribe(handleMessage);
-        }
-    }, [status, subscribe, handleMessage]);
+    // Auto-subscribe when ready (connection + channel both ready)
+    const { publish, isSubscribed, ready } = useChannel("chat-room", {
+        onMessage: handleMessage,
+    });
 
     const sendMessage = () => {
         publish({ text: "Hello from React!", timestamp: Date.now() });
@@ -48,7 +49,7 @@ function ChatRoom() {
     return (
         <div>
             <div>
-                Channel: {isSubscribed() ? "Subscribed" : "Not subscribed"}
+                Status: {ready ? "Ready & Subscribed" : "Not ready"}
             </div>
 
             <div className="messages">
@@ -57,7 +58,7 @@ function ChatRoom() {
                 ))}
             </div>
 
-            <button onClick={sendMessage} disabled={!isSubscribed()}>
+            <button onClick={sendMessage} disabled={!ready}>
                 Send Message
             </button>
         </div>
@@ -65,7 +66,40 @@ function ChatRoom() {
 }
 ```
 
-### 2. Authentication
+### 2. Manual Subscription (Advanced)
+
+For more control over subscription timing:
+
+```tsx
+function AdvancedChatRoom() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const { subscribe, publish, ready, status } = useChannel("chat-room");
+    const { status: connectionStatus } = useConnection();
+
+    // Handle incoming messages
+    const handleMessage = useCallback((message: Message) => {
+        setMessages((prev) => [...prev, message]);
+    }, []);
+
+    // Manual subscription control
+    useEffect(() => {
+        if (ready) {
+            subscribe(handleMessage);
+        }
+    }, [ready, subscribe, handleMessage]);
+
+    return (
+        <div>
+            <div>Connection: {connectionStatus}</div>
+            <div>Channel: {status}</div>
+            <div>Ready: {ready ? "✅" : "❌"}</div>
+            {/* ... rest of component */}
+        </div>
+    );
+}
+```
+
+### 3. Authentication
 
 ```tsx
 import { useAuth, useConnection } from "qpub/react";
@@ -147,7 +181,7 @@ interface ChannelProps {
 
 ### Hooks
 
-#### `useChannel(channelName)`
+#### `useChannel(channelName, options?)`
 
 Manages Socket channel with direct SDK method exposure.
 
@@ -159,6 +193,7 @@ const {
     // State
     status, // 'initialized' | 'subscribing' | 'subscribed' | 'unsubscribing' | 'unsubscribed' | 'failed'
     error,
+    ready, // boolean - true when both connection and channel are ready
 
     // SDK methods (exposed directly)
     subscribe, // (callback: (message: Message) => void) => void
@@ -171,8 +206,7 @@ const {
     reset, // () => void
     getName, // () => string
 } = useChannel("channel-name", {
-    autoSubscribe: boolean,
-    suspense: boolean,
+    onMessage: (message: Message) => void, // Auto-subscribe when ready
 });
 ```
 
@@ -215,20 +249,51 @@ const {
 
 ## Advanced Usage
 
-### Multiple Channels
+### Multiple Channels with Auto-Subscribe
 
 ```tsx
 function MultiChannelComponent() {
+    // Auto-subscribe approach (recommended)
+    const notifications = useChannel("notifications", {
+        onMessage: (msg: Message) => showNotification(msg),
+    });
+    const chat = useChannel("chat-room", {
+        onMessage: (msg: Message) => addChatMessage(msg),
+    });
+    const events = useChannel("system-events", {
+        onMessage: (msg: Message) => logSystemEvent(msg),
+    });
+
+    return (
+        <div>
+            <div>Notifications: {notifications.ready ? "✅" : "⏳"}</div>
+            <div>Chat: {chat.ready ? "✅" : "⏳"}</div>
+            <div>Events: {events.ready ? "✅" : "⏳"}</div>
+        </div>
+    );
+}
+```
+
+### Multiple Channels with Manual Control
+
+```tsx
+function ManualMultiChannelComponent() {
     const notifications = useChannel("notifications");
     const chat = useChannel("chat-room");
     const events = useChannel("system-events");
 
     useEffect(() => {
-        // Subscribe to different channels with different handlers
-        notifications.subscribe((msg: Message) => showNotification(msg));
-        chat.subscribe((msg: Message) => addChatMessage(msg));
-        events.subscribe((msg: Message) => logSystemEvent(msg));
-    }, []);
+        // Manual subscription control
+        if (notifications.ready) {
+            notifications.subscribe((msg: Message) => showNotification(msg));
+        }
+        if (chat.ready) {
+            chat.subscribe((msg: Message) => addChatMessage(msg));
+        }
+        if (events.ready) {
+            events.subscribe((msg: Message) => logSystemEvent(msg));
+        }
+    }, [notifications.ready, chat.ready, events.ready]);
 
     return (
         <div>
@@ -247,15 +312,25 @@ Full TypeScript support with strict typing:
 ```tsx
 import {
     UseChannelReturn,
+    UseChannelOptions,
     UseAuthReturn,
     UseConnectionReturn,
     SocketProviderProps,
 } from "qpub/react";
+
+// Type-safe usage
+const { ready, publish } = useChannel("chat", {
+    onMessage: (message: Message) => {
+        // message is fully typed
+        console.log(message.data);
+    }
+});
 ```
 
 ## Notes
 
 -   **Socket-only**: This React integration focuses on real-time Socket functionality
+-   **Auto-Subscribe**: Use `onMessage` option for automatic subscription management when connection + channel are ready
 -   **SDK-faithful**: All hooks expose SDK methods directly without abstractions
 -   **Provider-based**: Use `SocketProvider` for consistent context
 -   **TypeScript**: Full type safety and IntelliSense support
