@@ -32,15 +32,31 @@ export const safeLocalStorage = {
     },
 };
 
-// Hook for detecting hydration
+// Hook for detecting hydration - improved for Next.js
 export function useIsHydrated(): boolean {
     const [isHydrated, setIsHydrated] = React.useState(false);
 
     React.useEffect(() => {
-        setIsHydrated(true);
+        // Use a small delay to ensure hydration is complete
+        const timer = setTimeout(() => {
+            setIsHydrated(true);
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, []);
 
     return isHydrated;
+}
+
+// Hook to prevent hydration mismatches
+export function useIsMounted(): boolean {
+    const [isMounted, setIsMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    return isMounted;
 }
 
 // SSR-safe state hook with localStorage persistence
