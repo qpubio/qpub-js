@@ -118,7 +118,10 @@ export function useChannel(
 
         // Cleanup: unsubscribe when ready becomes false or component unmounts
         return () => {
-            socketChannel.unsubscribe();
+            // Only unsubscribe if the connection is still active to avoid errors
+            if (socket.connection.isConnected()) {
+                socketChannel.unsubscribe();
+            }
         };
     }, [ready, options?.onMessage, socket, channelName]);
 

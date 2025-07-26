@@ -63,6 +63,13 @@ export function useConnection(): UseConnectionReturn {
         connection.on(ConnectionEvents.CLOSED, handleClosed);
         connection.on(ConnectionEvents.FAILED, handleFailed);
 
+        // Set initial connection status to reflect actual SDK state
+        setStatus(
+            connection.isConnected()
+                ? ConnectionEvents.CONNECTED
+                : ConnectionEvents.DISCONNECTED
+        );
+
         // Cleanup - unsubscribe from all SDK connection events
         return () => {
             connection.off(ConnectionEvents.INITIALIZED, handleInitialized);
