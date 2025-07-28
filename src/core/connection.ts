@@ -1,15 +1,16 @@
 import { AuthEvents, ConnectionEvents } from "types/event.type";
 import { EventEmitter } from "./event-emitter";
+import { ConnectionEventPayloads } from "types/internal-events";
 import { OptionManager } from "./option-manager";
 import { WebSocketClient } from "./websocket-client";
 import { QPubWebSocket } from "interfaces/websocket.interface";
-import { IncomingConnectionMessage, IncomingMessage } from "interfaces/message.interface";
+import { IncomingConnectionMessage, IncomingMessage, ErrorInfo } from "interfaces/message.interface";
 import { ActionType } from "types/action.type";
 import { AuthManager } from "./auth-manager";
 import { Logger } from "utils/logger";
 import { SocketChannelManager } from "./channel-manager";
 
-class Connection extends EventEmitter {
+class Connection extends EventEmitter<ConnectionEventPayloads> {
     private static instances: Map<string, Connection> = new Map();
     private instanceId: string;
     private optionManager: OptionManager;
@@ -57,7 +58,7 @@ class Connection extends EventEmitter {
 
     public async connect(): Promise<void> {
         try {
-            this.emit(ConnectionEvents.CONNECTING);
+            this.emit(ConnectionEvents.CONNECTING, { attempt: 1 });
 
             if (this.authManager.shouldAutoAuthenticate()) {
                 await this.authManager.authenticate();
@@ -86,7 +87,7 @@ class Connection extends EventEmitter {
             this.logger.info("WebSocket connection opened");
             this.reconnectAttempts = 0;
             this.isReconnecting = false;
-            this.emit(ConnectionEvents.OPENED);
+            this.emit(ConnectionEvents.OPENED, {});
             this.setupPingHandler();
 
             if (this.optionManager.getOption("autoResubscribe")) {
@@ -103,7 +104,11 @@ class Connection extends EventEmitter {
                 this.pingTimeout = undefined;
             }
 
-            this.emit(ConnectionEvents.CLOSED);
+            this.emit(ConnectionEvents.CLOSED, { 
+                code: event.code, 
+                reason: event.reason, 
+                wasClean: event.wasClean 
+            });
 
             this.channelManager.pendingSubscribeAllChannels();
 
@@ -119,7 +124,10 @@ class Connection extends EventEmitter {
         this.socket.onerror = (event: Event) => {
             this.logger.error("WebSocket connection error:", event);
             this.channelManager.pendingSubscribeAllChannels();
-            this.emit(ConnectionEvents.FAILED, event);
+            this.emit(ConnectionEvents.FAILED, { 
+                error: new Error("WebSocket connection error"), 
+                context: "websocket" 
+            });
         };
 
         this.socket.onmessage = (event: MessageEvent) => {
@@ -127,13 +135,20 @@ class Connection extends EventEmitter {
                 const message: IncomingMessage = JSON.parse(event.data);
                 this.logger.debug("Received message:", message);
                 if (message.action === ActionType.CONNECTED) {
-                    this.emit(ConnectionEvents.CONNECTED, message as IncomingConnectionMessage);
+                    const connMessage = message as IncomingConnectionMessage;
+                    this.emit(ConnectionEvents.CONNECTED, { 
+                        connectionId: connMessage.connectionId,
+                        connectionDetails: connMessage.connectionDetails 
+                    });
                 } else if (message.action === ActionType.DISCONNECTED) {
-                    this.emit(ConnectionEvents.DISCONNECTED);
+                    this.emit(ConnectionEvents.DISCONNECTED, {});
                 }
             } catch (error) {
                 this.logger.error("Error processing message:", error);
-                this.emit(ConnectionEvents.FAILED, error);
+                this.emit(ConnectionEvents.FAILED, { 
+                    error: error instanceof Error ? error : new Error("Unknown error"), 
+                    context: "message_processing" 
+                });
             }
         };
 
@@ -219,7 +234,7 @@ class Connection extends EventEmitter {
     }
 
     private handleAuthError(error: Error) {
-        this.emit(ConnectionEvents.FAILED, error);
+        this.emit(ConnectionEvents.FAILED, { error, context: "authentication" });
         this.disconnect();
     }
 
@@ -260,10 +275,7 @@ class Connection extends EventEmitter {
                 );
 
                 this.emit(ConnectionEvents.CONNECTING, {
-                    isReconnection: true,
-                    attempt: this.reconnectAttempts + 1,
-                    maxAttempts,
-                    delay,
+                    attempt: this.reconnectAttempts + 1
                 });
 
                 await new Promise((resolve) => setTimeout(resolve, delay));
@@ -328,10 +340,8 @@ class Connection extends EventEmitter {
                 if (this.reconnectAttempts >= maxAttempts) {
                     this.logger.error("Max reconnection attempts reached");
                     this.emit(ConnectionEvents.FAILED, {
-                        error,
-                        context: "reconnection",
-                        attempt: this.reconnectAttempts,
-                        maxAttempts,
+                        error: error instanceof Error ? error : new Error(String(error)),
+                        context: "reconnection"
                     });
                     this.isReconnecting = false;
                     break;
@@ -349,9 +359,9 @@ class Connection extends EventEmitter {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
-        this.emit(ConnectionEvents.CLOSING);
+        this.emit(ConnectionEvents.CLOSING, {});
         this.wsClient.disconnect();
-        this.emit(ConnectionEvents.CLOSED);
+        this.emit(ConnectionEvents.CLOSED, {});
     }
 
     public reset(): void {

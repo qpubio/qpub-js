@@ -1,9 +1,9 @@
-import { ChannelEvents } from "types/event.type";
 import { AuthManager } from "./auth-manager";
 import { BaseChannel } from "./channel";
 import { HttpClient } from "./http-client";
 import { OptionManager } from "./option-manager";
 import { RestPublishRequest } from "interfaces/message.interface";
+import { ChannelEvents } from "types/event.type";
 
 export class RestChannel extends BaseChannel {
     private httpClient: HttpClient;
@@ -49,7 +49,11 @@ export class RestChannel extends BaseChannel {
 
             return await this.httpClient.post<T>(url, requestPayload, headers);
         } catch (error) {
-            this.emit(ChannelEvents.FAILED, error);
+            this.emit(ChannelEvents.FAILED, { 
+                channelName: this.name, 
+                error: error instanceof Error ? error : new Error("Unknown error"),
+                action: "publish"
+            });
             throw error;
         }
     }

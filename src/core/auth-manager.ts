@@ -1,4 +1,5 @@
 import { EventEmitter } from "./event-emitter";
+import { AuthEventPayloads } from "types/internal-events";
 import { OptionManager } from "./option-manager";
 import { HttpClient } from "./http-client";
 import { JWT } from "utils/jwt";
@@ -13,7 +14,7 @@ import { ApiKey } from "utils/api-key";
 import { AuthEvents } from "types/event.type";
 import { Logger } from "utils/logger";
 
-class AuthManager extends EventEmitter {
+class AuthManager extends EventEmitter<AuthEventPayloads> {
     private static instances: Map<string, AuthManager> = new Map();
     private instanceId: string;
     private optionManager: OptionManager;
@@ -33,7 +34,9 @@ class AuthManager extends EventEmitter {
         if (tokenRequest) {
             this.logger.debug("Initial token request found, requesting token");
             this.requestToken(tokenRequest).catch((error) => {
-                this.emit(AuthEvents.TOKEN_ERROR, error);
+                this.emit(AuthEvents.TOKEN_ERROR, { 
+                    error: error instanceof Error ? error : new Error("Unknown error")
+                });
             });
         }
     }
@@ -58,9 +61,9 @@ class AuthManager extends EventEmitter {
 
         // Emit appropriate event based on context
         if (context.includes("token")) {
-            this.emit(AuthEvents.TOKEN_ERROR, formattedError);
+            this.emit(AuthEvents.TOKEN_ERROR, { error: formattedError });
         } else if (context.includes("auth")) {
-            this.emit(AuthEvents.AUTH_ERROR, formattedError);
+            this.emit(AuthEvents.AUTH_ERROR, { error: formattedError, context });
         }
 
         throw formattedError;
@@ -167,7 +170,11 @@ class AuthManager extends EventEmitter {
     private setToken(token: string): void {
         this.logger.debug("Setting new token");
         this.currentToken = token;
-        this.emit(AuthEvents.TOKEN_UPDATED, token);
+        const decoded = JWT.decode(token);
+        this.emit(AuthEvents.TOKEN_UPDATED, { 
+            token, 
+            expiresAt: decoded?.payload?.exp ? new Date(decoded.payload.exp * 1000) : undefined 
+        });
         this.scheduleTokenRefresh(token);
     }
 
@@ -176,7 +183,7 @@ class AuthManager extends EventEmitter {
             return this.currentToken;
         }
         if (this.currentToken) {
-            this.emit(AuthEvents.TOKEN_EXPIRED);
+            this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date(), token: this.currentToken });
             this.clearToken();
         }
         return null;
@@ -196,17 +203,19 @@ class AuthManager extends EventEmitter {
                 this.logger.debug(`Scheduling token refresh in ${delay}ms`);
                 this.refreshTimeout = setTimeout(() => {
                     this.logger.info("Token expired, clearing token");
-                    this.emit(AuthEvents.TOKEN_EXPIRED);
+                    this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date() });
                     this.clearToken();
                 }, delay);
             } else {
                 this.logger.warn("Token already expired or about to expire");
-                this.emit(AuthEvents.TOKEN_EXPIRED);
+                this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date() });
                 this.clearToken();
             }
         } catch (error) {
             this.logger.error("Error scheduling token refresh:", error);
-            this.emit(AuthEvents.TOKEN_ERROR, error);
+            this.emit(AuthEvents.TOKEN_ERROR, { 
+                error: error instanceof Error ? error : new Error("Unknown error")
+            });
             this.clearToken();
         }
     }

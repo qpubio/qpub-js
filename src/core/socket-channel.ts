@@ -9,6 +9,7 @@ import {
     IncomingDataMessage,
     OutgoingDataMessage,
     Message,
+    ErrorInfo,
 } from "interfaces/message.interface";
 
 export class SocketChannel extends BaseChannel {
@@ -42,7 +43,11 @@ export class SocketChannel extends BaseChannel {
                 }
             } catch (error) {
                 console.error("Error parsing message:", error);
-                this.emit(ChannelEvents.FAILED, error);
+                this.emit(ChannelEvents.FAILED, { 
+                    channelName: this.name, 
+                    error: error instanceof Error ? error : new Error("Unknown error"),
+                    action: "message_parsing"
+                });
             }
         };
         socket.addEventListener("message", this.messageHandler);
@@ -93,18 +98,28 @@ export class SocketChannel extends BaseChannel {
             case ActionType.SUBSCRIBED:
                 this.subscribed = true;
                 this.pendingSubscribe = false;
-                this.emit(ChannelEvents.SUBSCRIBED);
+                this.emit(ChannelEvents.SUBSCRIBED, { 
+                    channelName: this.name, 
+                    subscriptionId: message.subscriptionId || ""
+                });
                 break;
 
             case ActionType.UNSUBSCRIBED:
                 this.subscribed = false;
                 this.pendingSubscribe = false;
                 this.messageCallback = undefined;
-                this.emit(ChannelEvents.UNSUBSCRIBED);
+                this.emit(ChannelEvents.UNSUBSCRIBED, { 
+                    channelName: this.name, 
+                    subscriptionId: message.subscriptionId
+                });
                 break;
 
             case ActionType.ERROR:
-                this.emit(ChannelEvents.FAILED, message.error);
+                this.emit(ChannelEvents.FAILED, { 
+                    channelName: this.name, 
+                    error: message.error || new Error("Unknown channel error"),
+                    action: "channel_operation"
+                });
                 break;
         }
     }
@@ -133,7 +148,11 @@ export class SocketChannel extends BaseChannel {
 
             this.wsClient.send(JSON.stringify(publishMessage));
         } catch (error) {
-            this.emit(ChannelEvents.FAILED, error);
+            this.emit(ChannelEvents.FAILED, { 
+                channelName: this.name, 
+                error: error instanceof Error ? error : new Error("Unknown error"),
+                action: "publish"
+            });
             throw error;
         }
     }
@@ -148,7 +167,9 @@ export class SocketChannel extends BaseChannel {
             return;
         }
 
-        this.emit(ChannelEvents.SUBSCRIBING);
+        this.emit(ChannelEvents.SUBSCRIBING, { 
+            channelName: this.name 
+        });
         this.messageCallback = callback;
         this.pendingSubscribe = false;
 
@@ -168,7 +189,11 @@ export class SocketChannel extends BaseChannel {
             this.setupMessageHandler();
             this.subscribe(this.messageCallback);
         } catch (error) {
-            this.emit(ChannelEvents.FAILED, error);
+            this.emit(ChannelEvents.FAILED, { 
+                channelName: this.name, 
+                error: error instanceof Error ? error : new Error("Unknown error"),
+                action: "resubscribe"
+            });
             throw error;
         }
     }
@@ -182,7 +207,9 @@ export class SocketChannel extends BaseChannel {
             return;
         }
 
-        this.emit(ChannelEvents.UNSUBSCRIBING);
+        this.emit(ChannelEvents.UNSUBSCRIBING, { 
+            channelName: this.name 
+        });
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.UNSUBSCRIBE,
