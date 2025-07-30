@@ -1,4 +1,4 @@
-import { JWTHeader, JWTPayload } from "../interfaces/jwt.interface";
+import { JWTHeader, JWTPayload } from "../../interfaces/jwt.interface";
 import { Crypto } from "./crypto";
 
 export class JWT {

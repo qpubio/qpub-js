@@ -2,15 +2,15 @@ import { EventEmitter } from "../shared/event-emitter";
 import { AuthEventPayloads } from "../../types/internal-events";
 import { OptionManager } from "./option-manager";
 import { HttpClient } from "../transport/http-client";
-import { JWT } from "../../utils/jwt";
+import { JWT } from "../shared/jwt";
 import { JWTPayload } from "../../interfaces/jwt.interface";
 import {
     AuthResponse,
     TokenOptions,
     TokenRequest,
 } from "../../interfaces/token.interface";
-import { Crypto } from "../../utils/crypto";
-import { ApiKey } from "../../utils/api-key";
+import { Crypto } from "../shared/crypto";
+import { ApiKey } from "../shared/api-key";
 import { AuthEvents } from "../../types/event.type";
 import { Logger } from "../shared/logger";
 

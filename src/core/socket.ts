@@ -1,7 +1,7 @@
 import { Option } from "../interfaces/option.interface";
 import { Connection } from "./connections/connection";
 import { OptionManager } from "./managers/option-manager";
-import { uuidv7 } from "../utils/uuid";
+import { uuidv7 } from "./shared/uuid";
 import { AuthManager } from "./managers/auth-manager";
 import { SocketChannelManager } from "./managers/channel-manager";
 import { Logger } from "./shared/logger";

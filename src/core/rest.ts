@@ -1,6 +1,6 @@
 import { Option } from "../interfaces/option.interface";
 import { OptionManager } from "./managers/option-manager";
-import { uuidv7 } from "../utils/uuid";
+import { uuidv7 } from "./shared/uuid";
 import { RestChannelManager } from "./managers/channel-manager";
 import { Logger } from "./shared/logger";
 
