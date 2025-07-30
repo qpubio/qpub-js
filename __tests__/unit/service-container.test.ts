@@ -1,4 +1,4 @@
-import { ServiceContainer } from '../../src/core/shared/service-container';
+import { ServiceContainer } from '../../src/core/bootstrap';
 
 describe('ServiceContainer', () => {
     let container: ServiceContainer;

@@ -1,6 +1,6 @@
 import { Option } from "../interfaces/option.interface";
-import { uuidv7 } from "./shared/uuid";
-import { ServiceContainer, bootstrapContainer } from "./shared";
+import { ServiceContainer, bootstrapContainer } from "./bootstrap";
+import { uuidv7 } from "./shared";
 import { RestChannelManager } from "./managers/channel-manager";
 import {
     IOptionManager,

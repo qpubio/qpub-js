@@ -1,5 +1,4 @@
-import { ServiceContainer } from "../core/shared/service-container";
-import { registerSocketServices, registerRestServices } from "../core/shared/service-registry";
+import { ServiceContainer, registerSocketServices, registerRestServices } from "../core/bootstrap";
 import { Option } from "../interfaces/option.interface";
 import {
     IOptionManager,

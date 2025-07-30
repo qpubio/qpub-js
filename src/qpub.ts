@@ -27,7 +27,7 @@ export {
     registerSocketServices,
     registerRestServices,
     bootstrapContainer,
-} from "./core/shared";
+} from "./core/bootstrap";
 
 // Re-export testing utilities for unit testing
 export {

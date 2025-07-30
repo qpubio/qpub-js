@@ -1,10 +1,10 @@
-import { ServiceContainer } from "./service-container";
+import { ServiceContainer } from "./container";
 import { Option } from "../../interfaces/option.interface";
 
 // Core Service Implementations
 import { OptionManager } from "../managers/option-manager";
 import { HttpClient } from "../transport/http-client";
-import { Logger } from "./logger";
+import { Logger } from "../shared/logger";
 import { AuthManager } from "../managers/auth-manager";
 import { WebSocketClient } from "../connections/websocket-client";
 import { SocketChannelManager, RestChannelManager } from "../managers/channel-manager";

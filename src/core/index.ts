@@ -16,4 +16,7 @@ export * from "./channels";
 export { HttpClient } from "./transport";
 
 // Shared utilities
-export * from "./shared"; 
+export * from "./shared";
+
+// Dependency injection bootstrap
+export * from "./bootstrap"; 
