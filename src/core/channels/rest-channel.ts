@@ -1,9 +1,9 @@
-import { AuthManager } from "./auth-manager";
+import { AuthManager } from "../managers/auth-manager";
 import { BaseChannel } from "./channel";
-import { HttpClient } from "./http-client";
-import { OptionManager } from "./option-manager";
-import { RestPublishRequest } from "interfaces/message.interface";
-import { ChannelEvents } from "types/event.type";
+import { HttpClient } from "../transport/http-client";
+import { OptionManager } from "../managers/option-manager";
+import { RestPublishRequest } from "../../interfaces/message.interface";
+import { ChannelEvents } from "../../types/event.type";
 
 export class RestChannel extends BaseChannel {
     private httpClient: HttpClient;

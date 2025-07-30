@@ -1,426 +1,306 @@
-# QPub SDK Architecture Proposal
+# QPub SDK Architecture Improvement Plan
 
-## 🎯 **Architectural Principles**
+## 🎯 **Current State & Goals**
 
-### **1. Domain-Driven Design (Simplified for SDK)**
-- **Bounded Contexts**: Clear domain boundaries
-- **Aggregates**: Logical grouping of related entities
-- **Domain Services**: Business logic encapsulation
-- **Value Objects**: Immutable data structures
+### **Current Architecture**
+We have a working SDK with a clear structure in `src/core/` that uses:
+- **Singleton Pattern** for managers (Connection, Auth, Option, ChannelManager)
+- **Event-Driven Architecture** with custom EventEmitter
+- **Clear Separation** between Socket and REST interfaces
+- **Channel Abstraction** with BaseChannel, SocketChannel, RestChannel
 
-### **2. Clean Architecture**
-- **Domain Layer**: Core business logic
-- **Application Layer**: Use cases and services
-- **Infrastructure Layer**: External dependencies
-- **Interface Layer**: Public API
+### **Improvement Goals**
+- **Improve Testability** without major rewrites
+- **Reduce Coupling** between components
+- **Maintain Current API** for consumers
+- **Enable Better DX** for development and debugging
 
-### **3. SOLID Principles**
-- **Dependency Inversion**: Depend on abstractions
-- **Single Responsibility**: Each class has one reason to change
-- **Open/Closed**: Open for extension, closed for modification
+## 📁 **Proposed Structure (Incremental)**
 
-## 📁 **Proposed Directory Structure**
+Keep most of your current structure but organize it better:
 
 ```
 src/
-├── domain/                          # Domain Layer (Business Logic)
-│   ├── connection/                  # Connection Bounded Context
-│   │   ├── entities/
-│   │   │   ├── connection.entity.ts
-│   │   │   └── connection-state.value-object.ts
-│   │   ├── services/
-│   │   │   ├── connection.service.ts
-│   │   │   └── reconnection.service.ts
-│   │   ├── events/
-│   │   │   └── connection.events.ts
-│   │   └── interfaces/
-│   │       └── connection.repository.ts
+├── core/                           # Keep existing core logic
+│   ├── managers/                   # Group managers together
+│   │   ├── auth-manager.ts
+│   │   ├── option-manager.ts
+│   │   ├── channel-manager.ts
+│   │   └── index.ts
 │   │
-│   ├── channels/                    # Channel Bounded Context
-│   │   ├── entities/
-│   │   │   ├── channel.entity.ts
-│   │   │   └── subscription.value-object.ts
-│   │   ├── services/
-│   │   │   ├── channel.service.ts
-│   │   │   └── subscription.service.ts
-│   │   └── interfaces/
-│   │       └── channel.repository.ts
+│   ├── connections/                # Group connection logic
+│   │   ├── connection.ts
+│   │   ├── websocket-client.ts
+│   │   └── index.ts
 │   │
-│   ├── authentication/              # Auth Bounded Context
-│   │   ├── entities/
-│   │   │   └── auth-session.entity.ts
-│   │   ├── services/
-│   │   │   ├── authentication.service.ts
-│   │   │   └── token-management.service.ts
-│   │   ├── value-objects/
-│   │   │   └── jwt-token.value-object.ts
-│   │   └── interfaces/
-│   │       └── token.repository.ts
+│   ├── channels/                   # Group channel logic  
+│   │   ├── base-channel.ts
+│   │   ├── socket-channel.ts
+│   │   ├── rest-channel.ts
+│   │   └── index.ts
 │   │
-│   └── shared/                      # Shared Domain
-│       ├── events/
-│       │   ├── domain-event.base.ts
-│       │   └── event-dispatcher.ts
-│       ├── value-objects/
-│       │   ├── instance-id.value-object.ts
-│       │   └── error-info.value-object.ts
-│       └── interfaces/
-│           └── repository.base.ts
+│   ├── transport/                  # Group transport logic
+│   │   ├── http-client.ts
+│   │   ├── websocket-client.ts
+│   │   └── index.ts
+│   │
+│   ├── shared/                     # Shared utilities
+│   │   ├── event-emitter.ts
+│   │   ├── logger.ts
+│   │   └── index.ts
+│   │
+│   ├── socket.ts                   # Main Socket class
+│   ├── rest.ts                     # Main REST class
+│   └── index.ts
 │
-├── application/                     # Application Layer (Use Cases)
-│   ├── use-cases/
-│   │   ├── connection/
-│   │   │   ├── connect-socket.use-case.ts
-│   │   │   ├── disconnect-socket.use-case.ts
-│   │   │   └── handle-reconnection.use-case.ts
-│   │   ├── channels/
-│   │   │   ├── subscribe-to-channel.use-case.ts
-│   │   │   ├── unsubscribe-from-channel.use-case.ts
-│   │   │   └── publish-message.use-case.ts
-│   │   └── authentication/
-│   │       ├── authenticate-user.use-case.ts
-│   │       └── refresh-token.use-case.ts
-│   │
-│   ├── services/                    # Application Services
-│   │   ├── message-routing.service.ts
-│   │   ├── configuration.service.ts
-│   │   └── event-coordination.service.ts
-│   │
-│   └── interfaces/                  # Application Interfaces
-│       ├── transport.interface.ts
-│       └── configuration.interface.ts
+├── interfaces/                     # Keep existing interfaces
+│   ├── channel.interface.ts
+│   ├── connection.interface.ts
+│   ├── option.interface.ts
+│   └── ...
 │
-├── infrastructure/                  # Infrastructure Layer
-│   ├── transport/
-│   │   ├── websocket/
-│   │   │   ├── websocket.client.ts
-│   │   │   └── websocket.adapter.ts
-│   │   ├── http/
-│   │   │   ├── http.client.ts
-│   │   │   └── rest.adapter.ts
-│   │   └── transport.factory.ts
-│   │
-│   ├── repositories/                # Data Access
-│   │   ├── connection.repository.impl.ts
-│   │   ├── channel.repository.impl.ts
-│   │   └── token.repository.impl.ts
-│   │
-│   ├── external/                    # External Services
-│   │   ├── auth-api.client.ts
-│   │   └── message-api.client.ts
-│   │
-│   └── persistence/                 # State Management
-│       ├── in-memory.store.ts
-│       └── session.store.ts
+├── types/                          # Keep existing types
+│   └── ...
 │
-├── interface/                       # Interface Layer (Public API)
-│   ├── sdk/
-│   │   ├── socket.sdk.ts
-│   │   ├── rest.sdk.ts
-│   │   └── qpub.sdk.ts
-│   │
-│   ├── adapters/                    # Framework Integrations
-│   │   ├── react/
-│   │   │   ├── hooks/
-│   │   │   ├── components/
-│   │   │   └── providers/
-│   │   └── vue/                     # Future framework support
-│   │
-│   └── dto/                         # Data Transfer Objects
-│       ├── connection.dto.ts
-│       ├── channel.dto.ts
-│       └── message.dto.ts
+├── utils/                          # Keep existing utils  
+│   └── ...
 │
-├── shared/                          # Cross-Cutting Concerns
-│   ├── dependency-injection/
-│   │   ├── container.ts
-│   │   ├── decorators.ts
-│   │   └── providers.ts
-│   │
-│   ├── events/
-│   │   ├── event-bus.ts
-│   │   └── event.types.ts
-│   │
-│   ├── logging/
-│   │   ├── logger.interface.ts
-│   │   ├── console.logger.ts
-│   │   └── logger.factory.ts
-│   │
-│   ├── utils/
-│   │   ├── crypto.util.ts
-│   │   ├── uuid.util.ts
-│   │   └── time.util.ts
-│   │
-│   └── types/                       # Consumer-facing types
-│       ├── events.types.ts
-│       ├── configuration.types.ts
-│       └── index.ts
+├── react-integration/              # Keep React integration as-is
+│   └── ...
 │
-└── main.ts                          # Main Entry Point
+└── qpub.ts                         # Main entry point
 ```
 
-## 🔧 **Key Architectural Improvements**
+## 🔧 **Incremental Improvements**
 
-### **1. Dependency Injection Container**
+### **Phase 1: Dependency Injection (Simple)**
 
-Replace singletons with a lightweight DI container:
+Replace singletons with a simple factory pattern:
 
 ```typescript
-// shared/dependency-injection/container.ts
-export class DIContainer {
+// core/shared/factory.ts
+export class ServiceFactory {
     private services = new Map<string, any>();
-    private factories = new Map<string, () => any>();
 
-    register<T>(token: string, implementation: T): void {
-        this.services.set(token, implementation);
+    constructor(private instanceId: string) {}
+
+    register<T>(key: string, instance: T): void {
+        this.services.set(key, instance);
     }
 
-    registerFactory<T>(token: string, factory: () => T): void {
-        this.factories.set(token, factory);
-    }
-
-    resolve<T>(token: string): T {
-        if (this.services.has(token)) {
-            return this.services.get(token);
+    get<T>(key: string): T {
+        const service = this.services.get(key);
+        if (!service) {
+            throw new Error(`Service ${key} not found`);
         }
-        if (this.factories.has(token)) {
-            const instance = this.factories.get(token)!();
-            this.services.set(token, instance);
-            return instance;
-        }
-        throw new Error(`Service ${token} not found`);
+        return service;
     }
 }
 ```
 
-### **2. Domain Entities (Business Logic)**
+### **Phase 2: Improve Connection Class**
 
 ```typescript
-// domain/connection/entities/connection.entity.ts
-export class ConnectionEntity {
+// core/connections/connection.ts  
+export class Connection extends EventEmitter<ConnectionEventPayloads> {
+    private static instances: Map<string, Connection> = new Map();
+
+    private constructor(
+        private instanceId: string,
+        private optionManager: OptionManager,    // Inject dependencies
+        private authManager: AuthManager,        // instead of getting
+        private wsClient: WebSocketClient        // via getInstance
+    ) {
+        super();
+        this.setupAuthListeners();
+        this.emit(ConnectionEvents.INITIALIZED);
+    }
+
+    // Keep singleton for backward compatibility but improve internal structure
+    public static getInstance(instanceId: string): Connection {
+        if (!Connection.instances.has(instanceId)) {
+            // Get dependencies (gradual migration from singletons)
+            const optionManager = OptionManager.getInstance(instanceId);
+            const authManager = AuthManager.getInstance(instanceId);  
+            const wsClient = WebSocketClient.getInstance(instanceId);
+            
+            Connection.instances.set(
+                instanceId, 
+                new Connection(instanceId, optionManager, authManager, wsClient)
+            );
+        }
+        return Connection.instances.get(instanceId)!;
+    }
+
+    // Keep all existing methods...
+}
+```
+
+### **Phase 3: Add Configuration Object**
+
+```typescript
+// core/shared/config.ts
+export interface SDKConfig {
+    apiKey: string;
+    autoConnect?: boolean;
+    reconnectAttempts?: number;
+    reconnectInterval?: number;
+    enableLogging?: boolean;
+}
+
+export class ConfigManager {
+    constructor(private config: Partial<SDKConfig>) {}
+
+    get<K extends keyof SDKConfig>(key: K): SDKConfig[K] {
+        return this.config[key];
+    }
+
+    set<K extends keyof SDKConfig>(key: K, value: SDKConfig[K]): void {
+        this.config[key] = value;
+    }
+}
+```
+
+### **Phase 4: Better Error Handling**
+
+```typescript
+// core/shared/errors.ts
+export enum ErrorType {
+    CONNECTION_FAILED = 'CONNECTION_FAILED',
+    AUTHENTICATION_FAILED = 'AUTHENTICATION_FAILED',
+    CHANNEL_SUBSCRIPTION_FAILED = 'CHANNEL_SUBSCRIPTION_FAILED'
+}
+
+export class QPubError extends Error {
     constructor(
-        private id: InstanceId,
-        private state: ConnectionState,
-        private config: ConnectionConfig
-    ) {}
-
-    async connect(): Promise<void> {
-        this.state = this.state.connecting();
-        // Domain logic for connection
-    }
-
-    disconnect(): void {
-        this.state = this.state.disconnecting();
-        // Domain logic for disconnection
-    }
-
-    // Rich domain behavior
-    canReconnect(): boolean {
-        return this.state.allowsReconnection() && 
-               this.config.autoReconnect;
+        public readonly type: ErrorType,
+        message: string,
+        public readonly context?: any
+    ) {
+        super(message);
+        this.name = 'QPubError';
     }
 }
 ```
 
-### **3. Use Cases (Application Logic)**
+## 🧪 **Testing Strategy (Pragmatic)**
 
+### **Current Problem**
 ```typescript
-// application/use-cases/connection/connect-socket.use-case.ts
-@Injectable()
-export class ConnectSocketUseCase {
-    constructor(
-        private connectionRepo: IConnectionRepository,
-        private transportService: ITransportService,
-        private eventBus: IEventBus
-    ) {}
-
-    async execute(request: ConnectSocketRequest): Promise<void> {
-        const connection = await this.connectionRepo.findById(request.instanceId);
-        
-        await connection.connect();
-        await this.transportService.establish(connection);
-        
-        this.eventBus.publish(new ConnectionEstablishedEvent(connection.id));
-        
-        await this.connectionRepo.save(connection);
-    }
-}
-```
-
-### **4. Clean Repository Pattern**
-
-```typescript
-// domain/connection/interfaces/connection.repository.ts
-export interface IConnectionRepository {
-    findById(id: InstanceId): Promise<ConnectionEntity>;
-    save(connection: ConnectionEntity): Promise<void>;
-    delete(id: InstanceId): Promise<void>;
-}
-
-// infrastructure/repositories/connection.repository.impl.ts
-@Injectable()
-export class ConnectionRepository implements IConnectionRepository {
-    private connections = new Map<string, ConnectionEntity>();
-
-    async findById(id: InstanceId): Promise<ConnectionEntity> {
-        const connection = this.connections.get(id.value);
-        if (!connection) {
-            throw new Error(`Connection ${id.value} not found`);
-        }
-        return connection;
-    }
-
-    async save(connection: ConnectionEntity): Promise<void> {
-        this.connections.set(connection.id.value, connection);
-    }
-}
-```
-
-### **5. Event-Driven Architecture**
-
-```typescript
-// shared/events/event-bus.ts
-export interface IDomainEvent {
-    eventId: string;
-    occurredOn: Date;
-    eventType: string;
-}
-
-@Injectable()
-export class EventBus {
-    private handlers = new Map<string, Array<(event: IDomainEvent) => void>>();
-
-    subscribe<T extends IDomainEvent>(
-        eventType: string, 
-        handler: (event: T) => void
-    ): void {
-        if (!this.handlers.has(eventType)) {
-            this.handlers.set(eventType, []);
-        }
-        this.handlers.get(eventType)!.push(handler);
-    }
-
-    async publish(event: IDomainEvent): Promise<void> {
-        const handlers = this.handlers.get(event.eventType) || [];
-        await Promise.all(handlers.map(handler => handler(event)));
-    }
-}
-```
-
-### **6. Value Objects for Type Safety**
-
-```typescript
-// domain/shared/value-objects/instance-id.value-object.ts
-export class InstanceId {
-    constructor(private readonly _value: string) {
-        if (!_value || _value.length === 0) {
-            throw new Error('InstanceId cannot be empty');
-        }
-    }
-
-    get value(): string {
-        return this._value;
-    }
-
-    equals(other: InstanceId): boolean {
-        return this._value === other._value;
-    }
-}
-```
-
-## 🚀 **Implementation Strategy**
-
-### **Phase 1: Foundation (Week 1-2)**
-1. Create new directory structure
-2. Implement DI container
-3. Create base interfaces and abstractions
-4. Implement event bus
-
-### **Phase 2: Domain Layer (Week 3-4)**  
-1. Extract domain entities
-2. Create value objects
-3. Define domain services
-4. Implement domain events
-
-### **Phase 3: Application Layer (Week 5-6)**
-1. Create use cases
-2. Implement application services
-3. Define interfaces for infrastructure
-
-### **Phase 4: Infrastructure Layer (Week 7-8)**
-1. Implement repositories
-2. Create transport adapters
-3. External service clients
-
-### **Phase 5: Interface Layer (Week 9-10)**
-1. Create new SDK interfaces
-2. Update React integration
-3. Maintain backward compatibility
-
-### **Phase 6: Migration & Testing (Week 11-12)**
-1. Gradual migration from old structure
-2. Comprehensive testing
-3. Documentation updates
-
-## 📈 **Benefits of This Architecture**
-
-### **For Maintainability:**
-✅ **Clear separation of concerns**  
-✅ **Testable components** (no more singletons)  
-✅ **Loosely coupled** modules  
-✅ **Domain logic isolation**  
-
-### **For Scalability:**
-✅ **Easy to add new transports** (gRPC, Server-Sent Events)  
-✅ **Framework-agnostic core**  
-✅ **Plugin architecture** ready  
-✅ **Microservice-like modularity**  
-
-### **For Developer Experience:**
-✅ **Better IntelliSense** with strong typing  
-✅ **Easier debugging** with clear boundaries  
-✅ **Self-documenting** code structure  
-✅ **Onboarding-friendly** architecture  
-
-## 🧪 **Testing Strategy**
-
-```typescript
-// Example: Testing with DI
-describe('ConnectSocketUseCase', () => {
-    let useCase: ConnectSocketUseCase;
-    let mockRepo: jest.Mocked<IConnectionRepository>;
-    let mockTransport: jest.Mocked<ITransportService>;
-
-    beforeEach(() => {
-        mockRepo = createMockRepository();
-        mockTransport = createMockTransport();
-        useCase = new ConnectSocketUseCase(mockRepo, mockTransport, mockEventBus);
-    });
-
-    it('should connect successfully', async () => {
-        // Test implementation
+// ❌ Hard to test - everything is connected
+describe('Connection', () => {
+    it('should connect', async () => {
+        const connection = Connection.getInstance('test'); // Real singletons
+        await connection.connect(); // Real WebSocket
     });
 });
 ```
 
-## ⚖️ **Trade-offs & Considerations**
+### **Improved Testing**
+```typescript
+// ✅ Easier to test - injectable dependencies
+describe('Connection', () => {
+    let mockOptionManager: jest.Mocked<OptionManager>;
+    let mockAuthManager: jest.Mocked<AuthManager>;
+    let mockWsClient: jest.Mocked<WebSocketClient>;
+
+    beforeEach(() => {
+        // Create mocks
+        mockOptionManager = {
+            getOption: jest.fn(),
+        } as any;
+
+        mockAuthManager = {
+            isAuthenticated: jest.fn().mockReturnValue(true),
+        } as any;
+
+        mockWsClient = {
+            connect: jest.fn(),
+            isConnected: jest.fn(),
+        } as any;
+    });
+
+    it('should connect successfully', async () => {
+        // Test with mocked dependencies
+        const connection = new Connection(
+            'test-id',
+            mockOptionManager,
+            mockAuthManager, 
+            mockWsClient
+        );
+
+        mockWsClient.connect.mockResolvedValue();
+        mockWsClient.isConnected.mockReturnValue(true);
+
+        await connection.connect();
+
+        expect(mockWsClient.connect).toHaveBeenCalled();
+    });
+});
+```
+
+## 📈 **Benefits of This Approach**
+
+### **For Current Codebase:**
+✅ **Minimal Changes** - builds on existing structure  
+✅ **Backward Compatible** - consumer API stays the same  
+✅ **Gradual Migration** - can be done incrementally  
+✅ **Low Risk** - no major rewrites  
+
+### **For Development:**
+✅ **Better Organization** - logical grouping of files  
+✅ **Easier Testing** - mockable dependencies  
+✅ **Clearer Responsibilities** - separated concerns  
+✅ **Better DX** - easier to navigate and debug  
+
+### **For Future:**
+✅ **Foundation for Growth** - easier to add features  
+✅ **Framework Agnostic** - core logic independent  
+✅ **Maintainable** - clearer code organization  
+
+## 🚀 **Implementation Plan**
+
+### **Hour 1-2: File Organization**
+1. Move files to new directory structure
+2. Update import paths
+3. Add barrel exports (index.ts files)
+4. Ensure everything still works
+
+### **Hour 3-4: Dependency Injection**
+1. Implement ServiceFactory
+2. Update Connection class to use injected dependencies
+3. Keep singleton pattern for backward compatibility
+4. Add tests for new structure
+
+### **Hour 5-6: Configuration & Error Handling**
+1. Add ConfigManager
+2. Implement QPubError classes
+3. Update error handling throughout codebase
+4. Add comprehensive tests
+
+### **Hour 7-8: Testing & Documentation**
+1. Add unit tests for all core classes
+2. Create integration tests
+3. Update documentation
+4. Performance testing
+
+## ⚖️ **Trade-offs**
 
 ### **Pros:**
-- **Highly maintainable** and testable
-- **Clear separation** of concerns  
-- **Framework agnostic** core
-- **Easy to extend** with new features
+- **Low Risk** - incremental changes
+- **Maintains API** - no breaking changes for consumers
+- **Improves Testability** - easier to mock dependencies
+- **Better Organization** - clearer file structure
 
 ### **Cons:**
-- **Initial complexity** increase
-- **More files** to manage
-- **Learning curve** for team
-- **Bundle size** consideration (mitigated with tree-shaking)
+- **Still Some Coupling** - not as clean as full DDD
+- **Gradual Improvement** - not immediately perfect
+- **Learning Curve** - team needs to adapt to new patterns
 
-### **Mitigation Strategies:**
-- **No gradual migration**
-- **No need to maintain backward compatibility** during transition (This project not used in production yet)
-- **Comprehensive documentation** and examples
-- **Build-time optimization** for bundle size
+### **Why This Approach:**
+1. **Practical** - works with your current codebase
+2. **Safe** - minimal risk of breaking existing functionality
+3. **Testable** - enables proper unit testing
+4. **Extensible** - foundation for future improvements
 
-This architecture transforms the SDK from a tightly-coupled system into a loosely-coupled, domain-driven architecture that's much easier to maintain, test, and extend while keeping the public API simple and familiar for consumers. 
+This approach respects your current investment while making meaningful improvements to testability, maintainability, and developer experience. The public API remains the same, so consumers see no changes, but the internal structure becomes much more manageable. 

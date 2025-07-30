@@ -3,7 +3,7 @@ import {
     OutgoingAction,
     IncomingAction,
     ConnectionAction,
-} from "types/action.type";
+} from "../types/action.type";
 
 // Error information interface matching backend protocol
 export interface ErrorInfo {

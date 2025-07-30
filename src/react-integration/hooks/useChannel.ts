@@ -1,5 +1,5 @@
 import React from "react";
-import { SocketChannel } from "../../core/socket-channel";
+import { SocketChannel } from "../../core/channels/socket-channel";
 import {
     ChannelEvents,
     ChannelEvent,

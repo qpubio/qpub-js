@@ -1,8 +1,8 @@
-import { Option } from "interfaces/option.interface";
-import { OptionManager } from "./option-manager";
-import { uuidv7 } from "utils/uuid";
-import { RestChannelManager } from "./channel-manager";
-import { Logger } from "utils/logger";
+import { Option } from "../interfaces/option.interface";
+import { OptionManager } from "./managers/option-manager";
+import { uuidv7 } from "../utils/uuid";
+import { RestChannelManager } from "./managers/channel-manager";
+import { Logger } from "./shared/logger";
 
 export class Rest {
     private instanceId: string;

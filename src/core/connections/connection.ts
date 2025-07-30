@@ -1,14 +1,14 @@
-import { AuthEvents, ConnectionEvents } from "types/event.type";
-import { EventEmitter } from "./event-emitter";
-import { ConnectionEventPayloads } from "types/internal-events";
-import { OptionManager } from "./option-manager";
+import { AuthEvents, ConnectionEvents } from "../../types/event.type";
+import { EventEmitter } from "../shared/event-emitter";
+import { ConnectionEventPayloads } from "../../types/internal-events";
+import { OptionManager } from "../managers/option-manager";
 import { WebSocketClient } from "./websocket-client";
-import { QPubWebSocket } from "interfaces/websocket.interface";
-import { IncomingConnectionMessage, IncomingMessage, ErrorInfo } from "interfaces/message.interface";
-import { ActionType } from "types/action.type";
-import { AuthManager } from "./auth-manager";
-import { Logger } from "utils/logger";
-import { SocketChannelManager } from "./channel-manager";
+import { QPubWebSocket } from "../../interfaces/websocket.interface";
+import { IncomingConnectionMessage, IncomingMessage, ErrorInfo } from "../../interfaces/message.interface";
+import { ActionType } from "../../types/action.type";
+import { AuthManager } from "../managers/auth-manager";
+import { Logger } from "../shared/logger";
+import { SocketChannelManager } from "../managers/channel-manager";
 
 class Connection extends EventEmitter<ConnectionEventPayloads> {
     private static instances: Map<string, Connection> = new Map();

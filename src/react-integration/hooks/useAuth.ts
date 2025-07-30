@@ -3,7 +3,7 @@ import { AuthEvents } from "../../types/event.type";
 import { UseAuthReturn } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";
-import { AuthManager } from "../../core/auth-manager";
+import { AuthManager } from "../../core/managers/auth-manager";
 
 /**
  * Hook for managing authentication with Socket interface

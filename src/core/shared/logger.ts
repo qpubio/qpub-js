@@ -1,4 +1,4 @@
-import { OptionManager } from "../core/option-manager";
+import { OptionManager } from "../managers/option-manager";
 
 export class Logger {
     private instanceId: string;

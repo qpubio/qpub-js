@@ -1,7 +1,7 @@
-import { ActionType } from "types/action.type";
+import { ActionType } from "../../types/action.type";
 import { BaseChannel } from "./channel";
-import { WebSocketClient } from "./websocket-client";
-import { ChannelEvents } from "types/event.type";
+import { WebSocketClient } from "../connections/websocket-client";
+import { ChannelEvents } from "../../types/event.type";
 import {
     IncomingChannelMessage,
     OutgoingChannelMessage,
@@ -10,7 +10,7 @@ import {
     OutgoingDataMessage,
     Message,
     ErrorInfo,
-} from "interfaces/message.interface";
+} from "../../interfaces/message.interface";
 
 export class SocketChannel extends BaseChannel {
     private wsClient: WebSocketClient;

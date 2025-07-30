@@ -1,4 +1,4 @@
-import { DEFAULT_OPTIONS, Option } from "interfaces/option.interface";
+import { DEFAULT_OPTIONS, Option } from "../../interfaces/option.interface";
 
 class OptionManager {
     private static instances: Map<string, OptionManager> = new Map();

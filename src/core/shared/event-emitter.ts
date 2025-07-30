@@ -1,4 +1,4 @@
-import { EventListener } from "types/listener.type";
+import { EventListener } from "../../types/listener.type";
 
 // Internal event map interface for type safety
 interface EventMap {

@@ -1,10 +1,10 @@
-import { Option } from "interfaces/option.interface";
-import { Connection } from "./connection";
-import { OptionManager } from "./option-manager";
-import { uuidv7 } from "utils/uuid";
-import { AuthManager } from "./auth-manager";
-import { SocketChannelManager } from "./channel-manager";
-import { Logger } from "utils/logger";
+import { Option } from "../interfaces/option.interface";
+import { Connection } from "./connections/connection";
+import { OptionManager } from "./managers/option-manager";
+import { uuidv7 } from "../utils/uuid";
+import { AuthManager } from "./managers/auth-manager";
+import { SocketChannelManager } from "./managers/channel-manager";
+import { Logger } from "./shared/logger";
 
 export class Socket {
     private instanceId: string;

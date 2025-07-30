@@ -1,5 +1,5 @@
-import { QPubWebSocket } from "interfaces/websocket.interface";
-import { Logger } from "../utils/logger";
+import { QPubWebSocket } from "../../interfaces/websocket.interface";
+import { Logger } from "../shared/logger";
 
 class WebSocketClient {
     private static instances: Map<string, WebSocketClient> = new Map();

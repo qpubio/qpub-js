@@ -1,18 +1,18 @@
-import { EventEmitter } from "./event-emitter";
-import { AuthEventPayloads } from "types/internal-events";
+import { EventEmitter } from "../shared/event-emitter";
+import { AuthEventPayloads } from "../../types/internal-events";
 import { OptionManager } from "./option-manager";
-import { HttpClient } from "./http-client";
-import { JWT } from "utils/jwt";
-import { JWTPayload } from "interfaces/jwt.interface";
+import { HttpClient } from "../transport/http-client";
+import { JWT } from "../../utils/jwt";
+import { JWTPayload } from "../../interfaces/jwt.interface";
 import {
     AuthResponse,
     TokenOptions,
     TokenRequest,
-} from "interfaces/token.interface";
-import { Crypto } from "utils/crypto";
-import { ApiKey } from "utils/api-key";
-import { AuthEvents } from "types/event.type";
-import { Logger } from "utils/logger";
+} from "../../interfaces/token.interface";
+import { Crypto } from "../../utils/crypto";
+import { ApiKey } from "../../utils/api-key";
+import { AuthEvents } from "../../types/event.type";
+import { Logger } from "../shared/logger";
 
 class AuthManager extends EventEmitter<AuthEventPayloads> {
     private static instances: Map<string, AuthManager> = new Map();

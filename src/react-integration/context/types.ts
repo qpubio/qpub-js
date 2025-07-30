@@ -1,5 +1,5 @@
 import React from "react";
-import { SocketChannel } from "../../core/socket-channel";
+import { SocketChannel } from "../../core/channels/socket-channel";
 import { Option } from "../../interfaces/option.interface";
 import { ConnectionEvent, ChannelEvent } from "../../types/event.type";
 import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";

@@ -1,15 +1,15 @@
-import { ChannelManager } from "interfaces/channel.interface";
-import { SocketChannel } from "./socket-channel";
-import { WebSocketClient } from "./websocket-client";
-import { RestChannel } from "./rest-channel";
-import { HttpClient } from "./http-client";
+import { ChannelManager } from "../../interfaces/channel.interface";
+import { SocketChannel } from "../channels/socket-channel";
+import { WebSocketClient } from "../connections/websocket-client";
+import { RestChannel } from "../channels/rest-channel";
+import { HttpClient } from "../transport/http-client";
 import { AuthManager } from "./auth-manager";
 import { OptionManager } from "./option-manager";
-import { Logger } from "../utils/logger";
+import { Logger } from "../shared/logger";
 import {
     DataMessagePayload,
     RestPublishRequest,
-} from "interfaces/message.interface";
+} from "../../interfaces/message.interface";
 
 export class SocketChannelManager implements ChannelManager {
     private static instances: Map<string, SocketChannelManager> = new Map();
