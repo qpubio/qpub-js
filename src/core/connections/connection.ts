@@ -30,6 +30,7 @@ export class Connection
     private reconnectAttempts: number = 0;
     private reconnectTimeout?: NodeJS.Timeout;
     private isReconnecting: boolean = false;
+    private isIntentionalDisconnect: boolean = false;
     private pingTimeout?: NodeJS.Timeout;
 
     constructor(
@@ -93,6 +94,7 @@ export class Connection
             this.logger.info("WebSocket connection opened");
             this.reconnectAttempts = 0;
             this.isReconnecting = false;
+            this.isIntentionalDisconnect = false;
             this.emit(ConnectionEvents.OPENED, {});
             this.setupPingHandler();
 
@@ -121,6 +123,7 @@ export class Connection
             // Only attempt reconnection if it wasn't an intentional close
             if (
                 !this.isReconnecting &&
+                !this.isIntentionalDisconnect &&
                 this.optionManager.getOption("autoReconnect")
             ) {
                 this.handleConnectionClosed();
@@ -367,6 +370,7 @@ export class Connection
 
     public disconnect(): void {
         this.isReconnecting = false; // Prevent reconnection attempts
+        this.isIntentionalDisconnect = true; // Mark as intentional disconnect
         if (this.pingTimeout) {
             clearTimeout(this.pingTimeout);
             this.pingTimeout = undefined;
@@ -382,6 +386,7 @@ export class Connection
     public reset(): void {
         this.disconnect();
         this.reconnectAttempts = 0;
+        this.isIntentionalDisconnect = false;
         this.wsClient.reset();
 
         this.removeAllListeners();
