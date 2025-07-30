@@ -1,14 +1,14 @@
-import { OptionManager } from "../managers/option-manager";
+import { IOptionManager, ILogger } from "../../interfaces/services.interface";
 
-export class Logger {
+export class Logger implements ILogger {
     private instanceId: string;
     private component: string;
-    private optionManager: OptionManager;
+    private optionManager: IOptionManager;
 
-    constructor(instanceId: string, component: string) {
+    constructor(instanceId: string, component: string, optionManager: IOptionManager) {
         this.instanceId = instanceId;
         this.component = component;
-        this.optionManager = OptionManager.getInstance(instanceId);
+        this.optionManager = optionManager;
     }
 
     private shouldLog(level: string): boolean {

@@ -1,16 +1,13 @@
 import { QPubWebSocket } from "../../interfaces/websocket.interface";
-import { Logger } from "../shared/logger";
+import { IWebSocketClient, ILogger } from "../../interfaces/services.interface";
 
-class WebSocketClient {
-    private static instances: Map<string, WebSocketClient> = new Map();
-    private instanceId: string;
+export class WebSocketClient implements IWebSocketClient {
     private socket: QPubWebSocket | null = null;
     private WebSocketImplementation: any;
-    private logger: Logger;
+    private logger: ILogger;
 
-    private constructor(instanceId: string) {
-        this.instanceId = instanceId;
-        this.logger = new Logger(instanceId, "WebSocketClient");
+    constructor(logger: ILogger) {
+        this.logger = logger;
 
         if (typeof window !== "undefined" && window.WebSocket) {
             this.WebSocketImplementation = window.WebSocket;
@@ -26,16 +23,6 @@ class WebSocketClient {
                 );
             }
         }
-    }
-
-    public static getInstance(instanceId: string): WebSocketClient {
-        if (!WebSocketClient.instances.has(instanceId)) {
-            WebSocketClient.instances.set(
-                instanceId,
-                new WebSocketClient(instanceId)
-            );
-        }
-        return WebSocketClient.instances.get(instanceId)!;
     }
 
     public getSocket(): QPubWebSocket | null {
@@ -88,8 +75,7 @@ class WebSocketClient {
 
     public reset(): void {
         this.logger.info("Resetting WebSocketClient instance");
-        WebSocketClient.instances.delete(this.instanceId);
+        // this.disconnect();
+        // this.socket = null;
     }
 }
-
-export { WebSocketClient };

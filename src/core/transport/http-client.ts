@@ -1,11 +1,10 @@
-class HttpClient {
+import { IHttpClient } from "../../interfaces/services.interface";
+
+export class HttpClient implements IHttpClient {
     private defaultHeaders: HeadersInit;
     private fetchImpl: typeof fetch;
 
-    constructor(
-        defaultHeaders: HeadersInit = {},
-        customFetch?: typeof fetch
-    ) {
+    constructor(defaultHeaders: HeadersInit = {}, customFetch?: typeof fetch) {
         this.defaultHeaders = {
             "Content-Type": "application/json",
             ...defaultHeaders,
@@ -80,10 +79,7 @@ class HttpClient {
         };
     }
 
-    private async request<T>(
-        url: string,
-        options: RequestInit
-    ): Promise<T> {
+    private async request<T>(url: string, options: RequestInit): Promise<T> {
         const response = await this.fetchImpl(url, {
             ...options,
             headers: {
@@ -108,7 +104,11 @@ class HttpClient {
         });
     }
 
-    async post<T>(url: string, data: unknown, headers: HeadersInit = {}): Promise<T> {
+    async post<T>(
+        url: string,
+        data: unknown,
+        headers: HeadersInit = {}
+    ): Promise<T> {
         return this.request<T>(url, {
             method: "POST",
             headers,
@@ -116,7 +116,11 @@ class HttpClient {
         });
     }
 
-    async put<T>(url: string, data: unknown, headers: HeadersInit = {}): Promise<T> {
+    async put<T>(
+        url: string,
+        data: unknown,
+        headers: HeadersInit = {}
+    ): Promise<T> {
         return this.request<T>(url, {
             method: "PUT",
             headers,
@@ -130,6 +134,16 @@ class HttpClient {
             headers,
         });
     }
-}
 
-export { HttpClient };
+    async patch<T>(
+        url: string,
+        data: unknown,
+        headers: HeadersInit = {}
+    ): Promise<T> {
+        return this.request<T>(url, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify(data),
+        });
+    }
+}

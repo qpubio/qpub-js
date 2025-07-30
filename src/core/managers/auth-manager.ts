@@ -1,7 +1,6 @@
 import { EventEmitter } from "../shared/event-emitter";
 import { AuthEventPayloads } from "../../types/internal-events";
-import { OptionManager } from "./option-manager";
-import { HttpClient } from "../transport/http-client";
+import { IOptionManager, IHttpClient, ILogger, IAuthManager } from "../../interfaces/services.interface";
 import { JWT } from "../shared/jwt";
 import { JWTPayload } from "../../interfaces/jwt.interface";
 import {
@@ -12,23 +11,19 @@ import {
 import { Crypto } from "../shared/crypto";
 import { ApiKey } from "../shared/api-key";
 import { AuthEvents } from "../../types/event.type";
-import { Logger } from "../shared/logger";
 
-class AuthManager extends EventEmitter<AuthEventPayloads> {
-    private static instances: Map<string, AuthManager> = new Map();
-    private instanceId: string;
-    private optionManager: OptionManager;
-    private httpClient: HttpClient;
+export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAuthManager {
+    private optionManager: IOptionManager;
+    private httpClient: IHttpClient;
     private currentToken: string | null = null;
     private refreshTimeout?: NodeJS.Timeout;
-    private logger: Logger;
+    private logger: ILogger;
 
-    private constructor(instanceId: string) {
+    constructor(optionManager: IOptionManager, httpClient: IHttpClient, logger: ILogger) {
         super();
-        this.instanceId = instanceId;
-        this.optionManager = OptionManager.getInstance(instanceId);
-        this.httpClient = new HttpClient();
-        this.logger = new Logger(instanceId, "AuthManager");
+        this.optionManager = optionManager;
+        this.httpClient = httpClient;
+        this.logger = logger;
 
         const tokenRequest = this.optionManager.getOption("tokenRequest");
         if (tokenRequest) {
@@ -41,12 +36,7 @@ class AuthManager extends EventEmitter<AuthEventPayloads> {
         }
     }
 
-    public static getInstance(instanceId: string): AuthManager {
-        if (!AuthManager.instances.has(instanceId)) {
-            AuthManager.instances.set(instanceId, new AuthManager(instanceId));
-        }
-        return AuthManager.instances.get(instanceId)!;
-    }
+
 
     /**
      * Unified error handler for auth manager
@@ -472,12 +462,17 @@ class AuthManager extends EventEmitter<AuthEventPayloads> {
         }
     }
 
+    public isAuthenticated(): boolean {
+        return this.currentToken !== null;
+    }
+
+    public getCurrentToken(): string | null {
+        return this.currentToken;
+    }
+
     public reset(): void {
         this.logger.info("Resetting auth manager");
         this.clearToken();
         this.removeAllListeners();
-        AuthManager.instances.delete(this.instanceId);
     }
 }
-
-export { AuthManager };

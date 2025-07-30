@@ -1,48 +1,54 @@
 import { AuthEvents, ConnectionEvents } from "../../types/event.type";
 import { EventEmitter } from "../shared/event-emitter";
 import { ConnectionEventPayloads } from "../../types/internal-events";
-import { OptionManager } from "../managers/option-manager";
-import { WebSocketClient } from "./websocket-client";
 import { QPubWebSocket } from "../../interfaces/websocket.interface";
-import { IncomingConnectionMessage, IncomingMessage, ErrorInfo } from "../../interfaces/message.interface";
+import {
+    IncomingConnectionMessage,
+    IncomingMessage,
+    ErrorInfo,
+} from "../../interfaces/message.interface";
 import { ActionType } from "../../types/action.type";
-import { AuthManager } from "../managers/auth-manager";
-import { Logger } from "../shared/logger";
-import { SocketChannelManager } from "../managers/channel-manager";
+import {
+    IOptionManager,
+    IAuthManager,
+    IWebSocketClient,
+    ISocketChannelManager,
+    ILogger,
+    IConnection,
+} from "../../interfaces/services.interface";
 
-class Connection extends EventEmitter<ConnectionEventPayloads> {
-    private static instances: Map<string, Connection> = new Map();
-    private instanceId: string;
-    private optionManager: OptionManager;
-    private authManager: AuthManager;
-    private wsClient: WebSocketClient;
-    private channelManager: SocketChannelManager;
-    private logger: Logger;
+export class Connection
+    extends EventEmitter<ConnectionEventPayloads>
+    implements IConnection
+{
+    private optionManager: IOptionManager;
+    private authManager: IAuthManager;
+    private wsClient: IWebSocketClient;
+    private channelManager: ISocketChannelManager;
+    private logger: ILogger;
     private socket: QPubWebSocket | null = null;
     private reconnectAttempts: number = 0;
     private reconnectTimeout?: NodeJS.Timeout;
     private isReconnecting: boolean = false;
     private pingTimeout?: NodeJS.Timeout;
 
-    private constructor(instanceId: string) {
+    constructor(
+        optionManager: IOptionManager,
+        authManager: IAuthManager,
+        wsClient: IWebSocketClient,
+        channelManager: ISocketChannelManager,
+        logger: ILogger
+    ) {
         super();
-        this.instanceId = instanceId;
-        this.optionManager = OptionManager.getInstance(this.instanceId);
-        this.authManager = AuthManager.getInstance(this.instanceId);
-        this.wsClient = WebSocketClient.getInstance(this.instanceId);
-        this.channelManager = SocketChannelManager.getInstance(this.instanceId);
-        this.logger = new Logger(this.instanceId, "Connection");
+        this.optionManager = optionManager;
+        this.authManager = authManager;
+        this.wsClient = wsClient;
+        this.channelManager = channelManager;
+        this.logger = logger;
 
         this.setupAuthListeners();
         this.logger.info("Connection instance initialized");
         this.emit(ConnectionEvents.INITIALIZED);
-    }
-
-    public static getInstance(instanceId: string): Connection {
-        if (!Connection.instances.has(instanceId)) {
-            Connection.instances.set(instanceId, new Connection(instanceId));
-        }
-        return Connection.instances.get(instanceId)!;
     }
 
     private getAuthenticatedWsUrl(): string {
@@ -104,10 +110,10 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
                 this.pingTimeout = undefined;
             }
 
-            this.emit(ConnectionEvents.CLOSED, { 
-                code: event.code, 
-                reason: event.reason, 
-                wasClean: event.wasClean 
+            this.emit(ConnectionEvents.CLOSED, {
+                code: event.code,
+                reason: event.reason,
+                wasClean: event.wasClean,
             });
 
             this.channelManager.pendingSubscribeAllChannels();
@@ -124,9 +130,9 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
         this.socket.onerror = (event: Event) => {
             this.logger.error("WebSocket connection error:", event);
             this.channelManager.pendingSubscribeAllChannels();
-            this.emit(ConnectionEvents.FAILED, { 
-                error: new Error("WebSocket connection error"), 
-                context: "websocket" 
+            this.emit(ConnectionEvents.FAILED, {
+                error: new Error("WebSocket connection error"),
+                context: "websocket",
             });
         };
 
@@ -136,18 +142,21 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
                 this.logger.debug("Received message:", message);
                 if (message.action === ActionType.CONNECTED) {
                     const connMessage = message as IncomingConnectionMessage;
-                    this.emit(ConnectionEvents.CONNECTED, { 
+                    this.emit(ConnectionEvents.CONNECTED, {
                         connectionId: connMessage.connectionId,
-                        connectionDetails: connMessage.connectionDetails 
+                        connectionDetails: connMessage.connectionDetails,
                     });
                 } else if (message.action === ActionType.DISCONNECTED) {
                     this.emit(ConnectionEvents.DISCONNECTED, {});
                 }
             } catch (error) {
                 this.logger.error("Error processing message:", error);
-                this.emit(ConnectionEvents.FAILED, { 
-                    error: error instanceof Error ? error : new Error("Unknown error"), 
-                    context: "message_processing" 
+                this.emit(ConnectionEvents.FAILED, {
+                    error:
+                        error instanceof Error
+                            ? error
+                            : new Error("Unknown error"),
+                    context: "message_processing",
                 });
             }
         };
@@ -234,7 +243,10 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
     }
 
     private handleAuthError(error: Error) {
-        this.emit(ConnectionEvents.FAILED, { error, context: "authentication" });
+        this.emit(ConnectionEvents.FAILED, {
+            error,
+            context: "authentication",
+        });
         this.disconnect();
     }
 
@@ -275,7 +287,7 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
                 );
 
                 this.emit(ConnectionEvents.CONNECTING, {
-                    attempt: this.reconnectAttempts + 1
+                    attempt: this.reconnectAttempts + 1,
                 });
 
                 await new Promise((resolve) => setTimeout(resolve, delay));
@@ -340,8 +352,11 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
                 if (this.reconnectAttempts >= maxAttempts) {
                     this.logger.error("Max reconnection attempts reached");
                     this.emit(ConnectionEvents.FAILED, {
-                        error: error instanceof Error ? error : new Error(String(error)),
-                        context: "reconnection"
+                        error:
+                            error instanceof Error
+                                ? error
+                                : new Error(String(error)),
+                        context: "reconnection",
                     });
                     this.isReconnecting = false;
                     break;
@@ -370,8 +385,5 @@ class Connection extends EventEmitter<ConnectionEventPayloads> {
         this.wsClient.reset();
 
         this.removeAllListeners();
-        Connection.instances.delete(this.instanceId);
     }
 }
-
-export { Connection };

@@ -1,38 +1,30 @@
 import { ChannelManager } from "../../interfaces/channel.interface";
 import { SocketChannel } from "../channels/socket-channel";
-import { WebSocketClient } from "../connections/websocket-client";
 import { RestChannel } from "../channels/rest-channel";
-import { HttpClient } from "../transport/http-client";
-import { AuthManager } from "./auth-manager";
-import { OptionManager } from "./option-manager";
-import { Logger } from "../shared/logger";
+import {
+    IWebSocketClient,
+    ILogger,
+    ISocketChannelManager,
+    IHttpClient,
+    IAuthManager,
+    IOptionManager,
+} from "../../interfaces/services.interface";
 import {
     DataMessagePayload,
     RestPublishRequest,
 } from "../../interfaces/message.interface";
 
-export class SocketChannelManager implements ChannelManager {
-    private static instances: Map<string, SocketChannelManager> = new Map();
-    private instanceId: string;
+export class SocketChannelManager implements ChannelManager, ISocketChannelManager {
     private channels: Map<string, SocketChannel> = new Map();
-    private wsClient: WebSocketClient;
-    private logger: Logger;
+    private wsClient: IWebSocketClient;
+    private logger: ILogger;
 
-    constructor(instanceId: string) {
-        this.instanceId = instanceId;
-        this.wsClient = WebSocketClient.getInstance(this.instanceId);
-        this.logger = new Logger(instanceId, "SocketChannelManager");
+    constructor(wsClient: IWebSocketClient, logger: ILogger) {
+        this.wsClient = wsClient;
+        this.logger = logger;
     }
 
-    public static getInstance(instanceId: string): SocketChannelManager {
-        if (!SocketChannelManager.instances.has(instanceId)) {
-            SocketChannelManager.instances.set(
-                instanceId,
-                new SocketChannelManager(instanceId)
-            );
-        }
-        return SocketChannelManager.instances.get(instanceId)!;
-    }
+
 
     public get(channelName: string): SocketChannel {
         if (!this.channels.has(channelName)) {
@@ -48,6 +40,20 @@ export class SocketChannelManager implements ChannelManager {
 
     public getAllChannels(): SocketChannel[] {
         return Array.from(this.channels.values());
+    }
+
+    public has(channelName: string): boolean {
+        return this.channels.has(channelName);
+    }
+
+    public remove(channelName: string): void {
+        const channel = this.channels.get(channelName);
+        if (channel) {
+            // Clean up the channel before removing
+            channel.removeAllListeners();
+            this.channels.delete(channelName);
+            this.logger.debug(`Channel ${channelName} removed`);
+        }
     }
 
     public pendingSubscribeAllChannels(): void {
@@ -82,38 +88,29 @@ export class SocketChannelManager implements ChannelManager {
         // Reset all channels
         this.channels.forEach((channel) => channel.reset());
         this.channels.clear();
-
-        // Remove this instance from static map
-        SocketChannelManager.instances.delete(this.instanceId);
     }
 }
 
 export class RestChannelManager implements ChannelManager {
-    private static instances: Map<string, RestChannelManager> = new Map();
-    private instanceId: string;
     private channels: Map<string, RestChannel> = new Map();
-    private httpClient: HttpClient;
-    private authManager: AuthManager;
-    private optionManager: OptionManager;
-    private logger: Logger;
+    private httpClient: IHttpClient;
+    private authManager: IAuthManager;
+    private optionManager: IOptionManager;
+    private logger: ILogger;
 
-    constructor(instanceId: string) {
-        this.instanceId = instanceId;
-        this.httpClient = new HttpClient();
-        this.authManager = AuthManager.getInstance(this.instanceId);
-        this.optionManager = OptionManager.getInstance(this.instanceId);
-        this.logger = new Logger(instanceId, "RestChannelManager");
+    constructor(
+        httpClient: IHttpClient,
+        authManager: IAuthManager,
+        optionManager: IOptionManager,
+        logger: ILogger
+    ) {
+        this.httpClient = httpClient;
+        this.authManager = authManager;
+        this.optionManager = optionManager;
+        this.logger = logger;
     }
 
-    public static getInstance(instanceId: string): RestChannelManager {
-        if (!RestChannelManager.instances.has(instanceId)) {
-            RestChannelManager.instances.set(
-                instanceId,
-                new RestChannelManager(instanceId)
-            );
-        }
-        return RestChannelManager.instances.get(instanceId)!;
-    }
+
 
     public get(channelName: string): RestChannel {
         if (!this.channels.has(channelName)) {
@@ -157,13 +154,24 @@ export class RestChannelManager implements ChannelManager {
         return await this.httpClient.post<T>(url, requestPayload, headers);
     }
 
+    public has(channelName: string): boolean {
+        return this.channels.has(channelName);
+    }
+
+    public remove(channelName: string): void {
+        const channel = this.channels.get(channelName);
+        if (channel) {
+            // Clean up the channel before removing
+            channel.removeAllListeners();
+            this.channels.delete(channelName);
+            this.logger.debug(`REST channel ${channelName} removed`);
+        }
+    }
+
     public reset(): void {
         this.logger.debug("Resetting all REST channels");
         // Reset all channels
         this.channels.forEach((channel) => channel.reset());
         this.channels.clear();
-
-        // Remove this instance from static map
-        RestChannelManager.instances.delete(this.instanceId);
     }
 }

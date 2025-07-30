@@ -3,7 +3,7 @@ import { AuthEvents } from "../../types/event.type";
 import { UseAuthReturn } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";
-import { AuthManager } from "../../core/managers/auth-manager";
+import { IAuthManager } from "../../interfaces/services.interface";
 
 /**
  * Hook for managing authentication with Socket interface
@@ -13,7 +13,7 @@ import { AuthManager } from "../../core/managers/auth-manager";
  */
 export function useAuth(): UseAuthReturn {
     const { socket } = useSocketContext();
-    const authManager: AuthManager = socket.authManager;
+    const authManager: IAuthManager = socket.authManager;
 
     const [token, setToken] = React.useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);

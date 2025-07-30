@@ -1,32 +1,45 @@
 import { Option } from "../interfaces/option.interface";
-import { Connection } from "./connections/connection";
-import { OptionManager } from "./managers/option-manager";
 import { uuidv7 } from "./shared/uuid";
-import { AuthManager } from "./managers/auth-manager";
-import { SocketChannelManager } from "./managers/channel-manager";
-import { Logger } from "./shared/logger";
+import { ServiceContainer, bootstrapContainer } from "./shared";
+import {
+    IOptionManager,
+    IAuthManager,
+    IConnection,
+    ISocketChannelManager,
+    ILogger,
+    ILoggerFactory,
+} from "../interfaces/services.interface";
 
 export class Socket {
     private instanceId: string;
-    public optionManager: OptionManager;
-    public authManager: AuthManager;
-    public connection: Connection;
-    public channels: SocketChannelManager;
-    private logger: Logger;
+    private container: ServiceContainer;
+    
+    // Public API - expose through interfaces for clean contracts
+    public readonly optionManager: IOptionManager;
+    public readonly authManager: IAuthManager;
+    public readonly connection: IConnection;
+    public readonly channels: ISocketChannelManager;
+    
+    private logger: ILogger;
 
     constructor(options?: Partial<Option>) {
         this.instanceId = `socket_${uuidv7()}`;
-        this.optionManager = OptionManager.getInstance(
-            this.instanceId,
-            options
-        );
-        this.logger = new Logger(this.instanceId, "Socket");
-
-        this.logger.debug("Initializing Socket instance");
-
-        this.authManager = AuthManager.getInstance(this.instanceId);
-        this.connection = Connection.getInstance(this.instanceId);
-        this.channels = SocketChannelManager.getInstance(this.instanceId);
+        
+        // Initialize service container
+        this.container = new ServiceContainer(this.instanceId);
+        
+        // Bootstrap all services
+        bootstrapContainer(this.container, "socket", this.instanceId, options);
+        
+        // Resolve main services
+        this.optionManager = this.container.resolve<IOptionManager>("optionManager");
+        this.authManager = this.container.resolve<IAuthManager>("authManager");
+        this.connection = this.container.resolve<IConnection>("connection");
+        this.channels = this.container.resolve<ISocketChannelManager>("socketChannelManager");
+        
+        // Get logger for this component
+        const loggerFactory = this.container.resolve<ILoggerFactory>("loggerFactory");
+        this.logger = loggerFactory.createLogger("Socket");
 
         if (this.optionManager.getOption("autoConnect")) {
             this.logger.info("Auto-connecting socket");
@@ -37,9 +50,15 @@ export class Socket {
     }
 
     public reset(): void {
-        this.channels.reset();
+        this.logger.info("Resetting Socket instance");
+        
+        // Reset all services in reverse dependency order
         this.connection.reset();
+        this.channels.reset(); 
         this.authManager.reset();
         this.optionManager.reset();
+        
+        // Clear container instances to ensure fresh state
+        this.container.clearInstances();
     }
 }

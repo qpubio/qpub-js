@@ -1,20 +1,18 @@
-import { AuthManager } from "../managers/auth-manager";
 import { BaseChannel } from "./channel";
-import { HttpClient } from "../transport/http-client";
-import { OptionManager } from "../managers/option-manager";
+import { IHttpClient, IAuthManager, IOptionManager } from "../../interfaces/services.interface";
 import { RestPublishRequest } from "../../interfaces/message.interface";
 import { ChannelEvents } from "../../types/event.type";
 
 export class RestChannel extends BaseChannel {
-    private httpClient: HttpClient;
-    private authManager: AuthManager;
-    private optionManager: OptionManager;
+    private httpClient: IHttpClient;
+    private authManager: IAuthManager;
+    private optionManager: IOptionManager;
 
     constructor(
         name: string,
-        httpClient: HttpClient,
-        authManager: AuthManager,
-        optionManager: OptionManager
+        httpClient: IHttpClient,
+        authManager: IAuthManager,
+        optionManager: IOptionManager
     ) {
         super(name);
         this.httpClient = httpClient;

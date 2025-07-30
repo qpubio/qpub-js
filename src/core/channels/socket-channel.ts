@@ -1,6 +1,6 @@
 import { ActionType } from "../../types/action.type";
 import { BaseChannel } from "./channel";
-import { WebSocketClient } from "../connections/websocket-client";
+import { IWebSocketClient } from "../../interfaces/services.interface";
 import { ChannelEvents } from "../../types/event.type";
 import {
     IncomingChannelMessage,
@@ -13,13 +13,13 @@ import {
 } from "../../interfaces/message.interface";
 
 export class SocketChannel extends BaseChannel {
-    private wsClient: WebSocketClient;
+    private wsClient: IWebSocketClient;
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
     private messageCallback?: (message: Message) => void;
     private messageHandler?: (event: MessageEvent) => void;
 
-    constructor(name: string, wsClient: WebSocketClient) {
+    constructor(name: string, wsClient: IWebSocketClient) {
         super(name);
         this.wsClient = wsClient;
         this.setupMessageHandler();
