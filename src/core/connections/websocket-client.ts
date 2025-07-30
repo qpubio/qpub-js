@@ -75,7 +75,10 @@ export class WebSocketClient implements IWebSocketClient {
 
     public reset(): void {
         this.logger.info("Resetting WebSocketClient instance");
-        // this.disconnect();
-        // this.socket = null;
+        // In the normal case, the connection will be closed by the Connection class when it is reset
+        // However, in the case of direct reset, we need to disconnect the socket
+        if (this.isConnected()) {
+            this.disconnect();
+        }
     }
 }
