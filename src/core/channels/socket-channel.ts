@@ -239,10 +239,19 @@ export class SocketChannel extends BaseChannel {
             this.messageHandler = undefined;
         }
 
-        if (this.isSubscribed()) {
-            this.unsubscribe();
+        // Only attempt to unsubscribe if WebSocket is still connected
+        // If disconnected, the server will handle cleanup automatically
+        if (this.isSubscribed() && this.wsClient.isConnected()) {
+            try {
+                this.unsubscribe();
+            } catch (error) {
+                // Log error but don't throw to prevent blocking reset
+                console.warn(`Failed to unsubscribe from channel ${this.name} during reset:`, error);
+            }
         }
 
+        // Reset local state regardless of unsubscribe success
+        this.subscribed = false;
         this.messageCallback = undefined;
         this.pendingSubscribe = false;
         this.removeAllListeners();

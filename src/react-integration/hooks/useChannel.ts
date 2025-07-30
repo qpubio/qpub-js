@@ -120,7 +120,12 @@ export function useChannel(
         return () => {
             // Only unsubscribe if the connection is still active to avoid errors
             if (socket.connection.isConnected()) {
-                socketChannel.unsubscribe();
+                try {
+                    socketChannel.unsubscribe();
+                } catch (error) {
+                    // Log error but don't throw during cleanup
+                    console.warn(`Failed to unsubscribe from channel ${channelName} during cleanup:`, error);
+                }
             }
         };
     }, [ready, options?.onMessage, socket, channelName]);

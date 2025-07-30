@@ -52,9 +52,9 @@ export class Socket {
     public reset(): void {
         this.logger.info("Resetting Socket instance");
         
-        // Reset all services in reverse dependency order
-        this.connection.reset();
+        // Reset all services in proper order - channels first while connection is still active
         this.channels.reset(); 
+        this.connection.reset();
         this.authManager.reset();
         this.optionManager.reset();
         
