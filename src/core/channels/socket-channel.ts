@@ -164,6 +164,8 @@ export class SocketChannel extends BaseChannel {
         }
 
         if (this.isSubscribed() && !this.pendingSubscribe) {
+            // Channel is already subscribed, just update the callback
+            this.messageCallback = callback;
             return;
         }
 
