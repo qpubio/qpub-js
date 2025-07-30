@@ -10,8 +10,13 @@
         "src/**"
     ],
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "rollup -c"
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:ci": "jest --ci --coverage --watchAll=false",
+        "build": "rollup -c",
+        "lint": "tsc --noEmit",
+        "lint:fix": "prettier --write src/**/*.ts"
     },
     "repository": {
         "type": "git",
@@ -44,6 +49,11 @@
         "@rollup/plugin-typescript": "^12.1.1",
         "@types/react": "^19.1.8",
         "@types/ws": "^8.5.12",
+        "@types/jest": "^29.5.12",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.2",
+        "jest-environment-jsdom": "^29.7.0",
+        "prettier": "^3.2.5",
         "rollup": "^2.79.2",
         "ts-loader": "^9.5.1",
         "tslib": "^2.8.0",
