@@ -164,9 +164,9 @@ export class ServiceContainer {
     validate(): void {
         const allServices = new Set(this.definitions.keys());
 
+        // Check if all dependencies are registered
         Array.from(this.definitions.entries()).forEach(
             ([serviceKey, definition]) => {
-                // Check if all dependencies are registered
                 for (const dependency of definition.dependencies || []) {
                     if (!allServices.has(dependency)) {
                         throw new Error(
@@ -178,29 +178,47 @@ export class ServiceContainer {
             }
         );
 
-        // Validate no circular dependencies by attempting to resolve all services
-        // This is done in a separate validation pass to avoid side effects
-        const tempContainer = new ServiceContainer(
-            `${this.instanceId}_validation`
-        );
+        // Validate no circular dependencies using dependency graph analysis
+        // This avoids creating actual instances during validation
+        this.validateCircularDependencies(allServices);
+    }
 
-        // Copy all definitions to temp container
-        Array.from(this.definitions.entries()).forEach(([key, definition]) => {
-            tempContainer.definitions.set(key, definition);
-        });
+    /**
+     * Validate circular dependencies using topological sort without instantiating services
+     */
+    private validateCircularDependencies(allServices: Set<string>): void {
+        const visited = new Set<string>();
+        const visiting = new Set<string>();
 
-        // Try to resolve each service to check for circular dependencies
-        Array.from(allServices).forEach((serviceKey) => {
-            try {
-                tempContainer.resolve(serviceKey);
-            } catch (error) {
-                if (
-                    error instanceof Error &&
-                    error.message.includes("Circular dependency")
-                ) {
-                    throw error;
+        const visit = (serviceKey: string, path: string[] = []): void => {
+            if (visiting.has(serviceKey)) {
+                const cycle = [...path, serviceKey].join(" -> ");
+                throw new Error(
+                    `Circular dependency detected in container '${this.instanceId}': ${cycle}`
+                );
+            }
+
+            if (visited.has(serviceKey)) {
+                return;
+            }
+
+            visiting.add(serviceKey);
+            const definition = this.definitions.get(serviceKey);
+            
+            if (definition && definition.dependencies) {
+                for (const dependency of definition.dependencies) {
+                    visit(dependency, [...path, serviceKey]);
                 }
-                // Other errors during validation are acceptable (missing implementations, etc.)
+            }
+
+            visiting.delete(serviceKey);
+            visited.add(serviceKey);
+        };
+
+        // Visit all services to detect circular dependencies
+        Array.from(allServices).forEach((serviceKey) => {
+            if (!visited.has(serviceKey)) {
+                visit(serviceKey);
             }
         });
     }
