@@ -29,9 +29,10 @@ export function useChannel(
     const [connectionStatus, setConnectionStatus] =
         React.useState<ConnectionEvent>("disconnected");
 
-    // Calculate ready state - true when both connection and channel are ready
+    // Calculate ready state - true when we can interact with the channel
     const ready = React.useMemo(() => {
-        return connectionStatus === "connected" && status === "initialized";
+        return connectionStatus === "connected" && 
+               (status === "initialized" || status === "subscribing" || status === "subscribed");
     }, [connectionStatus, status]);
 
     // Get the actual SocketChannel from SDK and track connection
@@ -108,23 +109,34 @@ export function useChannel(
         };
     }, [socket, channelName]);
 
-    // Auto-subscription effect
+    // Auto-subscription effect with better cleanup handling
     React.useEffect(() => {
         if (!options?.onMessage || !ready || !socket) return;
 
         const socketChannel = socket.channels.get(channelName);
+        let isSubscribed = false;
 
-        socketChannel.subscribe(options.onMessage);
+        // Subscribe with error handling
+        try {
+            socketChannel.subscribe(options.onMessage);
+            isSubscribed = true;
+            console.log(`[QPub Channel] Auto-subscribed to channel: ${channelName}`);
+        } catch (error) {
+            console.warn(`[QPub Channel] Failed to auto-subscribe to ${channelName}:`, error);
+        }
 
         // Cleanup: unsubscribe when ready becomes false or component unmounts
         return () => {
+            if (!isSubscribed) return;
+            
             // Only unsubscribe if the connection is still active to avoid errors
             if (socket.connection.isConnected()) {
                 try {
                     socketChannel.unsubscribe();
+                    console.log(`[QPub Channel] Auto-unsubscribed from channel: ${channelName}`);
                 } catch (error) {
                     // Log error but don't throw during cleanup
-                    console.warn(`Failed to unsubscribe from channel ${channelName} during cleanup:`, error);
+                    console.warn(`[QPub Channel] Failed to unsubscribe from channel ${channelName} during cleanup:`, error);
                 }
             }
         };

@@ -5,9 +5,7 @@ export interface SocketContextValue {
     socket: Socket;
 }
 
-export const SocketContext = React.createContext<SocketContextValue | null>(
-    null
-);
+export const SocketContext = React.createContext<SocketContextValue | null>(null);
 
 export const useSocketContext = (): SocketContextValue => {
     const context = React.useContext(SocketContext);
