@@ -6,101 +6,99 @@ import {
     ConnectionEvents,
     ConnectionEvent,
 } from "../../types/event.type";
-import { UseChannelReturn, UseChannelOptions } from "../context/types";
+import { UseChannelReturn } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 import { Message } from "../../interfaces/message.interface";
 
 /**
- * Hook for managing Socket channels with direct SDK method exposure
+ * React hook that provides a thin wrapper around the core SocketChannel.
  *
- * @param channelName - Name of the channel
- * @param options - Optional configuration including onMessage
- * @returns Channel state and all SDK methods
+ * This follows the SDK's design - no automatic subscriptions, just manual control.
+ * Use the subscribe() method to manually subscribe with your callback.
+ *
+ * Example usage (following SDK examples):
+ * ```
+ * const { status, subscribe, unsubscribe } = useChannel("my-channel");
+ *
+ * useEffect(() => {
+ *     if (status === "initialized") {
+ *         subscribe(handleMessage);
+ *     }
+ * }, [status, subscribe, handleMessage]);
+ * ```
  */
-export function useChannel(
-    channelName: string,
-    options?: UseChannelOptions
-): UseChannelReturn {
+export function useChannel(channelName: string): UseChannelReturn {
     const { socket } = useSocketContext();
 
     const [channel, setChannel] = React.useState<SocketChannel | null>(null);
     const [status, setStatus] = React.useState<ChannelEvent>("initialized");
     const [error, setError] = React.useState<Error | null>(null);
     const [connectionStatus, setConnectionStatus] =
-        React.useState<ConnectionEvent>("disconnected");
+        React.useState<ConnectionEvent>("closed");
 
-    // Calculate ready state - true when we can interact with the channel
     const ready = React.useMemo(() => {
-        return connectionStatus === "connected" && 
-               (status === "initialized" || status === "subscribing" || status === "subscribed");
+        return (
+            connectionStatus === "connected" &&
+            (status === "initialized" ||
+                status === "subscribing" ||
+                status === "subscribed")
+        );
     }, [connectionStatus, status]);
 
-    // Get the actual SocketChannel from SDK and track connection
+    // Set up channel and event listeners
     React.useEffect(() => {
         if (!socket) return;
 
         const socketChannel = socket.channels.get(channelName);
         setChannel(socketChannel);
 
-        // Set up SDK channel event listeners
-        const handleInitialized = () => setStatus(ChannelEvents.INITIALIZED);
-        const handleSubscribing = () => {
-            setStatus(ChannelEvents.SUBSCRIBING);
-            setError(null);
-        };
-        const handleSubscribed = () => {
-            setStatus(ChannelEvents.SUBSCRIBED);
-            setError(null);
-        };
-        const handleUnsubscribing = () =>
-            setStatus(ChannelEvents.UNSUBSCRIBING);
-        const handleUnsubscribed = () => setStatus(ChannelEvents.UNSUBSCRIBED);
-        const handleFailed = (err: Error) => {
-            setStatus(ChannelEvents.FAILED);
-            setError(err);
-        };
+        const handleChannelSubscribing = () => setStatus("subscribing");
+        const handleChannelSubscribed = () => setStatus("subscribed");
+        const handleChannelUnsubscribed = () => setStatus("initialized");
+        const handleChannelFailed = (event: any) => setError(event.error);
 
-        // Connection event handlers
-        const handleConnected = () =>
-            setConnectionStatus(ConnectionEvents.CONNECTED);
-        const handleDisconnected = () =>
-            setConnectionStatus(ConnectionEvents.DISCONNECTED);
-        const handleConnectionFailed = () =>
-            setConnectionStatus(ConnectionEvents.FAILED);
+        socketChannel.on(ChannelEvents.SUBSCRIBING, handleChannelSubscribing);
+        socketChannel.on(ChannelEvents.SUBSCRIBED, handleChannelSubscribed);
+        socketChannel.on(ChannelEvents.UNSUBSCRIBED, handleChannelUnsubscribed);
+        socketChannel.on(ChannelEvents.FAILED, handleChannelFailed);
 
-        // Subscribe to SDK channel events
-        socketChannel.on(ChannelEvents.INITIALIZED, handleInitialized);
-        socketChannel.on(ChannelEvents.SUBSCRIBING, handleSubscribing);
-        socketChannel.on(ChannelEvents.SUBSCRIBED, handleSubscribed);
-        socketChannel.on(ChannelEvents.UNSUBSCRIBING, handleUnsubscribing);
-        socketChannel.on(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
-        socketChannel.on(ChannelEvents.FAILED, handleFailed);
+        return () => {
+            socketChannel.off(
+                ChannelEvents.SUBSCRIBING,
+                handleChannelSubscribing
+            );
+            socketChannel.off(
+                ChannelEvents.SUBSCRIBED,
+                handleChannelSubscribed
+            );
+            socketChannel.off(
+                ChannelEvents.UNSUBSCRIBED,
+                handleChannelUnsubscribed
+            );
+            socketChannel.off(ChannelEvents.FAILED, handleChannelFailed);
+        };
+    }, [socket, channelName]);
 
-        // Subscribe to connection events
-        socket.connection.on(ConnectionEvents.CONNECTED, handleConnected);
-        socket.connection.on(ConnectionEvents.DISCONNECTED, handleDisconnected);
+    // Set up connection listeners
+    React.useEffect(() => {
+        if (!socket) return;
+
+        const handleConnectionOpened = () => setConnectionStatus("connected");
+        const handleConnectionClosed = () => setConnectionStatus("closed");
+        const handleConnectionFailed = () => setConnectionStatus("failed");
+
+        socket.connection.on(ConnectionEvents.OPENED, handleConnectionOpened);
+        socket.connection.on(ConnectionEvents.CLOSED, handleConnectionClosed);
         socket.connection.on(ConnectionEvents.FAILED, handleConnectionFailed);
 
-        // Set initial connection status
-        setConnectionStatus(
-            socket.connection.isConnected()
-                ? ConnectionEvents.CONNECTED
-                : ConnectionEvents.DISCONNECTED
-        );
-
-        // Cleanup listeners when component unmounts or channel changes
         return () => {
-            socketChannel.off(ChannelEvents.INITIALIZED, handleInitialized);
-            socketChannel.off(ChannelEvents.SUBSCRIBING, handleSubscribing);
-            socketChannel.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
-            socketChannel.off(ChannelEvents.UNSUBSCRIBING, handleUnsubscribing);
-            socketChannel.off(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
-            socketChannel.off(ChannelEvents.FAILED, handleFailed);
-
-            socket.connection.off(ConnectionEvents.CONNECTED, handleConnected);
             socket.connection.off(
-                ConnectionEvents.DISCONNECTED,
-                handleDisconnected
+                ConnectionEvents.OPENED,
+                handleConnectionOpened
+            );
+            socket.connection.off(
+                ConnectionEvents.CLOSED,
+                handleConnectionClosed
             );
             socket.connection.off(
                 ConnectionEvents.FAILED,
@@ -109,108 +107,66 @@ export function useChannel(
         };
     }, [socket, channelName]);
 
-    // Auto-subscription effect with better cleanup handling
-    React.useEffect(() => {
-        if (!options?.onMessage || !ready || !socket) return;
-
-        const socketChannel = socket.channels.get(channelName);
-        let isSubscribed = false;
-
-        // Subscribe with error handling
-        try {
-            socketChannel.subscribe(options.onMessage);
-            isSubscribed = true;
-            console.log(`[QPub Channel] Auto-subscribed to channel: ${channelName}`);
-        } catch (error) {
-            console.warn(`[QPub Channel] Failed to auto-subscribe to ${channelName}:`, error);
-        }
-
-        // Cleanup: unsubscribe when ready becomes false or component unmounts
-        return () => {
-            if (!isSubscribed) return;
-            
-            // Only unsubscribe if the connection is still active to avoid errors
-            if (socket.connection.isConnected()) {
-                try {
-                    socketChannel.unsubscribe();
-                    console.log(`[QPub Channel] Auto-unsubscribed from channel: ${channelName}`);
-                } catch (error) {
-                    // Log error but don't throw during cleanup
-                    console.warn(`[QPub Channel] Failed to unsubscribe from channel ${channelName} during cleanup:`, error);
-                }
-            }
-        };
-    }, [ready, options?.onMessage, socket, channelName]);
-
-    // Expose all SocketChannel methods directly
+    // Thin wrapper methods that just call the core SDK methods
     const subscribe = React.useCallback(
         (callback: (message: Message) => void) => {
-            if (!socket) throw new Error("Socket not available");
-            const socketChannel = socket.channels.get(channelName);
-            return socketChannel.subscribe(callback);
+            if (!channel) throw new Error("Channel not available");
+            channel.subscribe(callback);
         },
-        [socket, channelName]
+        [channel]
     );
-
-    const resubscribe = React.useCallback(async (): Promise<void> => {
-        if (!socket) throw new Error("Socket not available");
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.resubscribe();
-    }, [socket, channelName]);
 
     const unsubscribe = React.useCallback(() => {
-        if (!socket) throw new Error("Socket not available");
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.unsubscribe();
-    }, [socket, channelName]);
+        if (!channel) return;
+        channel.unsubscribe();
+    }, [channel]);
 
     const publish = React.useCallback(
-        async (data: any, event?: string, clientId?: string): Promise<void> => {
-            if (!socket) throw new Error("Socket not available");
-            const socketChannel = socket.channels.get(channelName);
-            return socketChannel.publish(data, event, clientId);
+        async (data: any, event?: string, clientId?: string) => {
+            if (!channel) throw new Error("Channel not available");
+            return channel.publish(data, event, clientId);
         },
-        [socket, channelName]
+        [channel]
     );
 
+    const resubscribe = React.useCallback(async () => {
+        if (!channel) throw new Error("Channel not available");
+        return channel.resubscribe();
+    }, [channel]);
+
     const isSubscribed = React.useCallback(() => {
-        if (!socket) return false;
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.isSubscribed();
-    }, [socket, channelName]);
+        return channel?.isSubscribed() ?? false;
+    }, [channel]);
 
     const isPendingSubscribe = React.useCallback(() => {
-        if (!socket) return false;
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.isPendingSubscribe();
-    }, [socket, channelName]);
+        return channel?.isPendingSubscribe() ?? false;
+    }, [channel]);
 
     const setPendingSubscribe = React.useCallback(
         (pending: boolean) => {
-            if (!socket) throw new Error("Socket not available");
-            const socketChannel = socket.channels.get(channelName);
-            return socketChannel.setPendingSubscribe(pending);
+            if (!channel) return;
+            channel.setPendingSubscribe(pending);
         },
-        [socket, channelName]
+        [channel]
     );
 
     const reset = React.useCallback(() => {
-        if (!socket) throw new Error("Socket not available");
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.reset();
-    }, [socket, channelName]);
+        if (!channel) return;
+        channel.reset();
+    }, [channel]);
 
     const getName = React.useCallback(() => {
-        if (!socket) return "";
-        const socketChannel = socket.channels.get(channelName);
-        return socketChannel.getName();
-    }, [socket, channelName]);
+        return channel?.getName() ?? channelName;
+    }, [channel, channelName]);
 
     return {
+        // States
         channel,
         status,
         error,
         ready,
+
+        // Core SDK methods (thin wrappers)
         subscribe,
         resubscribe,
         unsubscribe,

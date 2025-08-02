@@ -12,7 +12,7 @@ import { useSocketContext } from "../context/SocketContext";
 export function useConnection(): UseConnectionReturn {
     const { socket } = useSocketContext();
     const [status, setStatus] = React.useState<ConnectionEvent>(
-        ConnectionEvents.DISCONNECTED
+        ConnectionEvents.INITIALIZED
     );
 
     React.useEffect(() => {

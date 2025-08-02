@@ -8,11 +8,6 @@ import { Message } from "../../interfaces/message.interface";
 // Re-export core types for convenience
 export type { Message };
 
-// useChannel options
-export interface UseChannelOptions {
-    onMessage?: (message: Message) => void;
-}
-
 // useChannel return type (Socket-only)
 export interface UseChannelReturn {
     // The actual core SocketChannel instance

@@ -95,10 +95,10 @@ rest.channels
 
 QPub includes built-in React hooks and components for real-time socket connections. 
 
-Use the `onMessage` option for automatic subscription management:
+Use manual subscription with proper cleanup for reliable message handling:
 
 ```jsx
-import React from "react";
+import React, { useCallback, useEffect } from "react";
 import { SocketProvider, useChannel, useConnection, Message } from "qpub/react";
 
 function App() {
@@ -111,13 +111,26 @@ function App() {
 
 function ChatRoom() {
     const { status } = useConnection();
-    const { ready, publish } = useChannel("my-channel", { 
-        onMessage: (message) => console.log("Received:", message) 
-    });
+    const { status: channelStatus, publish, subscribe, unsubscribe } = useChannel("my-channel");
+
+    const handleMessage = useCallback((message) => {
+        console.log("Received:", message);
+    }, []);
+
+    useEffect(() => {
+        if (channelStatus === "initialized") {
+            subscribe(handleMessage);
+        }
+        return () => unsubscribe();
+    }, [channelStatus, subscribe, unsubscribe, handleMessage]);
+
+    const ready = status === "connected" && 
+                  (channelStatus === "subscribed" || channelStatus === "subscribing");
 
     return (
         <div>
             <div>Connection: {status}</div>
+            <div>Channel: {channelStatus}</div>
             <div>Ready: {ready ? "✅" : "⏳"}</div>
             <button 
                 onClick={() => publish("Hello from Socket!")}
