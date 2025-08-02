@@ -83,6 +83,10 @@ export function useChannel(channelName: string): UseChannelReturn {
     React.useEffect(() => {
         if (!socket) return;
 
+        // Check current connection state on mount (in case already connected)
+        const currentlyConnected = socket.connection.isConnected();
+        setConnectionStatus(currentlyConnected ? "connected" : "closed");
+
         const handleConnectionOpened = () => setConnectionStatus("connected");
         const handleConnectionClosed = () => setConnectionStatus("closed");
         const handleConnectionFailed = () => setConnectionStatus("failed");
