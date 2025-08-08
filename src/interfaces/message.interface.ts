@@ -126,6 +126,22 @@ export interface ErrorInfo {
 }
 
 //
+// Ping/Pong
+//
+
+// Ping message
+export interface PingMessage extends IncomingMessage {
+    action: ActionType.PING;
+    timestamp: number;
+}
+
+// Pong message
+export interface PongMessage extends IncomingMessage {
+    action: ActionType.PONG;
+    timestamp: number;
+}
+
+//
 // REST
 //
 

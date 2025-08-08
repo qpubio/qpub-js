@@ -18,7 +18,11 @@ export enum ActionType {
     MESSAGE = 10,
 
     // Error actions
-    ERROR = 11
+    ERROR = 11,
+
+    // Heartbeat actions (for browser compatibility)
+    PING = 12,
+    PONG = 13
 }
 
 // Action type string mapping
@@ -34,7 +38,9 @@ export const ActionStrings: Record<ActionType, string> = {
     [ActionType.PUBLISH]: "publish",
     [ActionType.PUBLISHED]: "published",
     [ActionType.MESSAGE]: "message",
-    [ActionType.ERROR]: "error"
+    [ActionType.ERROR]: "error",
+    [ActionType.PING]: "ping",
+    [ActionType.PONG]: "pong"
 };
 
 // Helper to convert ActionType to string
@@ -76,5 +82,5 @@ export const ErrorActions = [
 export type ErrorAction = typeof ErrorActions[number];
 
 // Combined types for message interfaces
-export type OutgoingAction = ActionType.CONNECT | ActionType.DISCONNECT | ActionType.SUBSCRIBE | ActionType.UNSUBSCRIBE | ActionType.PUBLISH;
-export type IncomingAction = ActionType.CONNECTED | ActionType.DISCONNECTED | ActionType.SUBSCRIBED | ActionType.UNSUBSCRIBED | ActionType.PUBLISHED | ActionType.MESSAGE | ActionType.ERROR;
+export type OutgoingAction = ActionType.CONNECT | ActionType.DISCONNECT | ActionType.SUBSCRIBE | ActionType.UNSUBSCRIBE | ActionType.PUBLISH | ActionType.PING;
+export type IncomingAction = ActionType.CONNECTED | ActionType.DISCONNECTED | ActionType.SUBSCRIBED | ActionType.UNSUBSCRIBED | ActionType.PUBLISHED | ActionType.MESSAGE | ActionType.ERROR | ActionType.PING | ActionType.PONG;

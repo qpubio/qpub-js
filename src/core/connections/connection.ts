@@ -4,8 +4,8 @@ import { ConnectionEventPayloads } from "../../types/internal-events";
 import { QPubWebSocket } from "../../interfaces/websocket.interface";
 import {
     IncomingConnectionMessage,
-    IncomingMessage,
-    ErrorInfo,
+    IncomingMessage, PingMessage,
+    PongMessage
 } from "../../interfaces/message.interface";
 import { ActionType } from "../../types/action.type";
 import {
@@ -32,6 +32,8 @@ export class Connection
     private isReconnecting: boolean = false;
     private isIntentionalDisconnect: boolean = false;
     private pingTimeout?: NodeJS.Timeout;
+    private pendingPings: Map<string, { startTime: number; resolve: (rtt: number) => void; reject: (error: Error) => void; timeout?: NodeJS.Timeout }> = new Map();
+    private pingCounter: number = 0; // Sequential counter for unique ping IDs
 
     constructor(
         optionManager: IOptionManager,
@@ -87,6 +89,46 @@ export class Connection
         return this.wsClient.isConnected();
     }
 
+    public ping(): Promise<number> {
+        return new Promise((resolve, reject) => {
+            if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                reject(new Error("WebSocket is not connected"));
+                return;
+            }
+
+            // Generate unique ping ID
+            const pingId = ++this.pingCounter;
+            const startTime = performance.now();
+
+            // Store the pending ping with its resolve/reject callbacks
+            this.pendingPings.set(pingId.toString(), { startTime, resolve, reject });
+
+            // Set a timeout for this specific ping
+            const timeout = setTimeout(() => {
+                this.pendingPings.delete(pingId.toString());
+                reject(new Error("Ping timeout"));
+            }, this.optionManager.getOption("pingTimeoutMs") || 10000);
+
+            // Store timeout ID to clear it when pong is received
+            this.pendingPings.get(pingId.toString())!.timeout = timeout;
+
+            // Create ping message
+            const pingMessage: PingMessage = {
+                action: ActionType.PING,
+                timestamp: pingId
+            };
+
+            try {
+                this.socket.send(JSON.stringify(pingMessage));
+                this.logger.debug(`Sent ping with ID: ${pingId}`);
+            } catch (error) {
+                clearTimeout(timeout);
+                this.pendingPings.delete(pingId.toString());
+                reject(error instanceof Error ? error : new Error(String(error)));
+            }
+        });
+    }
+
     private setupSocketListeners(): void {
         if (!this.socket) return;
 
@@ -111,6 +153,7 @@ export class Connection
                 clearTimeout(this.pingTimeout);
                 this.pingTimeout = undefined;
             }
+
 
             this.emit(ConnectionEvents.CLOSED, {
                 code: event.code,
@@ -151,6 +194,9 @@ export class Connection
                     });
                 } else if (message.action === ActionType.DISCONNECTED) {
                     this.emit(ConnectionEvents.DISCONNECTED, {});
+                } else if (message.action === ActionType.PONG) {
+                    // Handle pong response for ping() method
+                    this.handlePongResponse(message);
                 }
             } catch (error) {
                 this.logger.error("Error processing message:", error);
@@ -189,8 +235,12 @@ export class Connection
         const PING_TIMEOUT =
             this.optionManager.getOption("pingTimeoutMs") || 60000;
 
+        // Note: Browser WebSocket API doesn't expose onping/onpong events
+        // These handlers only work in Node.js environments
+        
         this.socket.onping = () => {
-            this.logger.debug("Ping received from server");
+            this.logger.debug("Ping received from server (Node.js only)");
+            
             if (this.pingTimeout) clearTimeout(this.pingTimeout);
 
             this.pingTimeout = setTimeout(() => {
@@ -199,10 +249,39 @@ export class Connection
         };
 
         this.socket.onpong = () => {
-            this.logger.debug("Pong received from server");
+            this.logger.debug("Pong received from server (Node.js only)");
         };
 
         this.logger.debug("Ping handler configured");
+    }
+
+    private handlePongResponse(message: IncomingMessage): void {
+        const pongMessage = message as PongMessage;
+        const pingId = pongMessage.timestamp?.toString();
+        
+        if (!pingId) {
+            this.logger.debug("Received pong without ping ID, ignoring");
+            return;
+        }
+
+        const pendingPing = this.pendingPings.get(pingId);
+        if (!pendingPing) {
+            this.logger.debug(`Received pong for unknown ping ID: ${pingId}`);
+            return;
+        }
+
+        // Calculate RTT and resolve the promise
+        const rtt = performance.now() - pendingPing.startTime;
+        
+        // Clear the timeout
+        if (pendingPing.timeout) {
+            clearTimeout(pendingPing.timeout);
+        }
+        
+        this.pendingPings.delete(pingId);
+        
+        this.logger.debug(`Ping ${pingId} completed with RTT: ${rtt.toFixed(2)}ms`);
+        pendingPing.resolve(rtt);
     }
 
     private handleConnectionInterrupted(): void {
@@ -378,15 +457,46 @@ export class Connection
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
+        // Reject all pending pings
+        this.pendingPings.forEach((pendingPing, pingId) => {
+            if (pendingPing.timeout) {
+                clearTimeout(pendingPing.timeout);
+            }
+            pendingPing.reject(new Error("Connection closed"));
+        });
+        this.pendingPings.clear();
+        
         this.emit(ConnectionEvents.CLOSING, {});
         this.wsClient.disconnect();
         this.emit(ConnectionEvents.CLOSED, {});
     }
 
     public reset(): void {
-        this.disconnect();
+        // Reject all pending pings with reset-specific error
+        this.pendingPings.forEach((pendingPing, pingId) => {
+            if (pendingPing.timeout) {
+                clearTimeout(pendingPing.timeout);
+            }
+            pendingPing.reject(new Error("Connection reset"));
+        });
+        this.pendingPings.clear();
+        
+        // Clean up timers
+        if (this.pingTimeout) {
+            clearTimeout(this.pingTimeout);
+            this.pingTimeout = undefined;
+        }
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+        }
+        
+        this.emit(ConnectionEvents.CLOSING, {});
+        this.wsClient.disconnect();
+        this.emit(ConnectionEvents.CLOSED, {});
+        
         this.reconnectAttempts = 0;
         this.isIntentionalDisconnect = false;
+        
         this.wsClient.reset();
 
         this.removeAllListeners();

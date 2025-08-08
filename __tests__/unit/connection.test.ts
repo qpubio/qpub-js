@@ -335,22 +335,17 @@ describe('Connection', () => {
         });
     });
 
-    describe('Ping/Pong Health Checks', () => {
+    describe('Ping Functionality', () => {
         let mocks: ReturnType<typeof createTestMocks>;
         let connection: Connection;
 
         beforeEach(async () => {
-            jest.useFakeTimers();
             mocks = createTestMocks({ pingTimeoutMs: 5000 });
             connection = createConnection(mocks);
             await connection.connect();
             
-            // Simulate connection opened to set up ping handler
+            // Simulate connection opened
             mocks.mockSocket.onopen?.();
-        });
-
-        afterEach(() => {
-            jest.useRealTimers();
         });
 
         it('should set up ping timeout on connection open', () => {
@@ -359,6 +354,7 @@ describe('Connection', () => {
         });
 
         it('should handle ping timeout and disconnect', () => {
+            jest.useFakeTimers();
             const disconnectSpy = jest.spyOn(connection, 'disconnect');
 
             // Simulate ping received
@@ -368,20 +364,156 @@ describe('Connection', () => {
             jest.advanceTimersByTime(6000);
 
             expect(disconnectSpy).toHaveBeenCalled();
+            jest.useRealTimers();
         });
 
-        it('should reset ping timeout when ping received', () => {
-            const disconnectSpy = jest.spyOn(connection, 'disconnect');
-
-            // Simulate multiple pings within timeout
-            mocks.mockSocket.onping?.();
-            jest.advanceTimersByTime(3000);
+        it('should send ping with unique ID and resolve with RTT', async () => {
+            const mockPerformanceNow = jest.spyOn(performance, 'now');
+            mockPerformanceNow.mockReturnValueOnce(1000); // ping start
+            mockPerformanceNow.mockReturnValueOnce(1050); // pong received (50ms later)
             
-            mocks.mockSocket.onping?.();
-            jest.advanceTimersByTime(3000);
+            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
+            
+            // Start the ping
+            const pingPromise = connection.ping();
+            
+            // Verify ping message was sent
+            expect(sendSpy).toHaveBeenCalledWith(
+                expect.stringContaining('"action":12') // ActionType.PING = 12
+            );
+            
+            const sentMessage = JSON.parse(sendSpy.mock.calls[0][0]);
+            expect(sentMessage).toMatchObject({
+                action: 12,
+                timestamp: expect.any(Number)
+            });
+            
+            // Simulate server response
+            const pongMessage = {
+                action: 13, // ActionType.PONG
+                timestamp: sentMessage.timestamp // Echo back the ping ID
+            };
+            
+            // Trigger message handler (simulate receiving pong)
+            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pongMessage) } as MessageEvent);
+            
+            // Verify ping resolves with correct RTT
+            const rtt = await pingPromise;
+            expect(rtt).toBe(50);
+            
+            mockPerformanceNow.mockRestore();
+            sendSpy.mockRestore();
+        });
 
-            // Should not disconnect since pings were received
-            expect(disconnectSpy).not.toHaveBeenCalled();
+        it('should reject ping if connection is not open', async () => {
+            // Set socket to null to simulate disconnected state
+            (connection as any).socket = null;
+            
+            await expect(connection.ping()).rejects.toThrow('WebSocket is not connected');
+        });
+
+        it('should reject ping on timeout', async () => {
+            jest.useFakeTimers();
+            
+            const pingPromise = connection.ping();
+            
+            // Advance time past timeout
+            jest.advanceTimersByTime(11000); // Longer than default 10s timeout
+            
+            await expect(pingPromise).rejects.toThrow('Ping timeout');
+            
+            jest.useRealTimers();
+        });
+
+        it('should handle multiple concurrent pings correctly', async () => {
+            const mockPerformanceNow = jest.spyOn(performance, 'now');
+            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
+            
+            // Mock timing in order: ping1 start, ping2 start, ping1 response, ping2 response
+            let callCount = 0;
+            mockPerformanceNow.mockImplementation(() => {
+                switch (callCount++) {
+                    case 0: return 1000; // ping1 start
+                    case 1: return 2000; // ping2 start  
+                    case 2: return 1030; // ping1 response (30ms RTT)
+                    case 3: return 2080; // ping2 response (80ms RTT)
+                    default: return Date.now();
+                }
+            });
+            
+            // Start multiple pings
+            const ping1Promise = connection.ping();
+            const ping2Promise = connection.ping();
+            
+            // Get the sent ping IDs
+            const ping1Message = JSON.parse(sendSpy.mock.calls[0][0]);
+            const ping2Message = JSON.parse(sendSpy.mock.calls[1][0]);
+            
+            // Verify different ping IDs
+            expect(ping1Message.timestamp).toBe(1); // First ping gets ID 1
+            expect(ping2Message.timestamp).toBe(2); // Second ping gets ID 2
+            
+            // Respond to ping1 first
+            const pong1Message = {
+                action: 13,
+                timestamp: ping1Message.timestamp // Echo back ping1 ID
+            };
+            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pong1Message) } as MessageEvent);
+            
+            // Respond to ping2 second
+            const pong2Message = {
+                action: 13,
+                timestamp: ping2Message.timestamp // Echo back ping2 ID
+            };
+            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pong2Message) } as MessageEvent);
+            
+            // Verify correct RTTs
+            const [rtt1, rtt2] = await Promise.all([ping1Promise, ping2Promise]);
+            expect(rtt1).toBe(30);
+            expect(rtt2).toBe(80);
+            
+            mockPerformanceNow.mockRestore();
+            sendSpy.mockRestore();
+        });
+
+        it('should clean up pending pings on connection close', async () => {
+            const pingPromise = connection.ping();
+            
+            // Simulate connection close
+            connection.disconnect();
+            
+            await expect(pingPromise).rejects.toThrow('Connection closed');
+        });
+
+        it('should clean up pending pings on connection reset', async () => {
+            const pingPromise = connection.ping();
+            
+            // Simulate connection reset
+            connection.reset();
+            
+            await expect(pingPromise).rejects.toThrow('Connection reset');
+        });
+
+        it('should ignore pong messages without ping ID', async () => {
+            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
+            
+            const pingPromise = connection.ping();
+            
+            // Send pong without ping ID
+            const pongWithoutId = {
+                action: 13
+                // missing timestamp (used as ping ID)
+            };
+            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pongWithoutId) } as MessageEvent);
+            
+            // Verify ping was sent but promise is still pending
+            expect(sendSpy).toHaveBeenCalled();
+            
+            // Clean up
+            connection.disconnect();
+            await expect(pingPromise).rejects.toThrow('Connection closed');
+            
+            sendSpy.mockRestore();
         });
     });
 

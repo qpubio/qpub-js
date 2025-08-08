@@ -55,6 +55,7 @@ export interface UseConnectionReturn {
     connect: () => Promise<void>;
     isConnected: () => boolean;
     disconnect: () => void;
+    ping: () => Promise<number>;
     reset: () => void;
 }
 

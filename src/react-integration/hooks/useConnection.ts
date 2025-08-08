@@ -6,7 +6,7 @@ import { useSocketContext } from "../context/SocketContext";
 /**
  * Hook for managing Socket connection state
  * Exposes all connection control methods from SDK
- * 
+ *
  * @returns Connection state and control methods
  */
 export function useConnection(): UseConnectionReturn {
@@ -99,6 +99,11 @@ export function useConnection(): UseConnectionReturn {
         return socket.connection.disconnect();
     }, [socket]);
 
+    const ping = React.useCallback((): Promise<number> => {
+        if (!socket) throw new Error("Socket not available");
+        return socket.connection.ping();
+    }, [socket]);
+
     const reset = React.useCallback((): void => {
         if (!socket) throw new Error("Socket not available");
         return socket.connection.reset();
@@ -109,6 +114,7 @@ export function useConnection(): UseConnectionReturn {
         connect,
         isConnected,
         disconnect,
+        ping,
         reset,
     };
 }

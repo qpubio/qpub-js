@@ -142,6 +142,12 @@ export interface IConnection extends EventEmitter<ConnectionEventPayloads> {
     isConnected(): boolean;
 
     /**
+     * Send a ping to the server and measure round-trip time
+     * @returns Promise that resolves with RTT in milliseconds
+     */
+    ping(): Promise<number>;
+
+    /**
      * Reset the connection
      */
     reset(): void;
