@@ -65,12 +65,12 @@ export class SocketChannel extends BaseChannel {
             incomingMessage;
 
         return messages.map(
-            (messagePayload): Message => ({
+            (messagePayload, index): Message => ({
                 // Base message fields
                 action,
                 error,
-                // Container message fields
-                id,
+                // Container message fields - suffix ID with index for batch messages
+                id: messages.length > 1 ? `${id}-${index}` : id,
                 timestamp,
                 channel,
                 // Individual message payload fields

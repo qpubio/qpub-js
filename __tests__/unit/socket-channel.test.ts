@@ -239,7 +239,7 @@ describe('SocketChannel', () => {
             
             expect(receivedMessages[0]).toMatchObject({
                 action: ActionType.MESSAGE,
-                id: 'msg-123',
+                id: 'msg-123-0',
                 channel: 'test-channel',
                 clientId: 'client-1',
                 event: 'user.created',
@@ -248,11 +248,58 @@ describe('SocketChannel', () => {
 
             expect(receivedMessages[1]).toMatchObject({
                 action: ActionType.MESSAGE,
-                id: 'msg-123', 
+                id: 'msg-123-1', 
                 channel: 'test-channel',
                 clientId: 'client-2',
                 event: 'user.updated',
                 data: { userId: 'user-456', name: 'Jane Smith' }
+            });
+        });
+
+        it('should handle single message without ID suffix', () => {
+            const mocks = createTestMocks();
+            const channel = createChannel('test-channel', mocks);
+
+            const receivedMessages: Message[] = [];
+            channel.subscribe((message) => receivedMessages.push(message));
+
+            // Simulate subscription success
+            const messageHandler = mocks.mockSocket.addEventListener.mock.calls
+                .find(call => call[0] === 'message')?.[1];
+            
+            messageHandler?.({ 
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: 'test-channel'
+                })
+            } as MessageEvent);
+
+            // Simulate incoming single message (should not get ID suffix)
+            const incomingMessage: IncomingDataMessage = {
+                id: 'single-msg-123',
+                timestamp: Date.now().toString(),
+                channel: 'test-channel',
+                action: ActionType.MESSAGE,
+                messages: [
+                    {
+                        clientId: 'client-1',
+                        event: 'user.created',
+                        data: { userId: 'user-123', name: 'John Doe' }
+                    }
+                ]
+            };
+
+            messageHandler?.({ data: JSON.stringify(incomingMessage) } as MessageEvent);
+
+            expect(receivedMessages).toHaveLength(1);
+            
+            expect(receivedMessages[0]).toMatchObject({
+                action: ActionType.MESSAGE,
+                id: 'single-msg-123', // Should NOT get suffix for single message
+                channel: 'test-channel',
+                clientId: 'client-1',
+                event: 'user.created',
+                data: { userId: 'user-123', name: 'John Doe' }
             });
         });
 
