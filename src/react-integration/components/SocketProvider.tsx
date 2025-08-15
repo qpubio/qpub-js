@@ -46,6 +46,7 @@ export function SocketProvider({
     const [socket, setSocket] = React.useState<Socket | null>(null);
     const instanceKeyRef = React.useRef<string>("");
     const optionsRef = React.useRef<Partial<Option>>(options);
+    const cleanupPromiseRef = React.useRef<Promise<void> | null>(null); // Track cleanup
 
     // Only update options ref if they actually changed
     const optionsChanged =
@@ -64,45 +65,60 @@ export function SocketProvider({
             return;
         }
 
-        // Release previous instance if we had one
-        if (instanceKeyRef.current && instanceKeyRef.current !== instanceKey) {
-            const prevInstance = globalInstances.get(instanceKeyRef.current);
-            if (prevInstance) {
-                prevInstance.refCount--;
+        // Wait for any pending cleanup to complete
+        const performCleanup = async () => {
+            if (cleanupPromiseRef.current) {
+                await cleanupPromiseRef.current;
+            }
 
-                if (prevInstance.refCount <= 0) {
-                    try {
-                        prevInstance.socket.reset();
-                    } catch (error) {
-                        console.warn(
-                            "[QPub] Error during socket cleanup:",
-                            error
-                        );
+            // Release previous instance if we had one
+            if (instanceKeyRef.current && instanceKeyRef.current !== instanceKey) {
+                const prevInstance = globalInstances.get(instanceKeyRef.current);
+                if (prevInstance) {
+                    prevInstance.refCount--;
+
+                    if (prevInstance.refCount <= 0) {
+                        try {
+                            // Perform cleanup synchronously
+                            prevInstance.socket.reset();
+                            globalInstances.delete(instanceKeyRef.current);
+                        } catch (error) {
+                            console.warn(
+                                "[QPub] Error during socket cleanup:",
+                                error
+                            );
+                        }
                     }
-                    globalInstances.delete(instanceKeyRef.current);
                 }
             }
-        }
+        };
 
-        // Get or create new instance
-        let instance = globalInstances.get(instanceKey);
-        if (!instance) {
-            const newSocket = new Socket({
-                autoConnect: optionsRef.current.autoConnect ?? true,
-                ...optionsRef.current,
-            });
+        // Execute cleanup and socket creation
+        const setupSocket = async () => {
+            await performCleanup();
 
-            instance = {
-                socket: newSocket,
-                refCount: 0,
-            };
-            globalInstances.set(instanceKey, instance);
-        }
+            // Get or create new instance
+            let instance = globalInstances.get(instanceKey);
+            if (!instance) {
+                const newSocket = new Socket({
+                    autoConnect: optionsRef.current.autoConnect ?? true,
+                    ...optionsRef.current,
+                });
 
-        instance.refCount++;
+                instance = {
+                    socket: newSocket,
+                    refCount: 0,
+                };
+                globalInstances.set(instanceKey, instance);
+            }
 
-        instanceKeyRef.current = instanceKey;
-        setSocket(instance.socket);
+            instance.refCount++;
+            instanceKeyRef.current = instanceKey;
+            setSocket(instance.socket);
+        };
+
+        // Execute setup and track cleanup promise
+        cleanupPromiseRef.current = setupSocket();
     }, [isMounted, optionsChanged]);
 
     // Cleanup effect - separate from main effect to avoid issues

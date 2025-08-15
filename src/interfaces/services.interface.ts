@@ -85,6 +85,11 @@ export interface IAuthManager extends EventEmitter<AuthEventPayloads> {
      * Reset authentication state
      */
     reset(): void;
+
+    /**
+     * Get abort signal for cancelling operations
+     */
+    getAbortSignal(): AbortSignal;
 }
 
 /**
@@ -151,6 +156,11 @@ export interface IConnection extends EventEmitter<ConnectionEventPayloads> {
      * Reset the connection
      */
     reset(): void;
+
+    /**
+     * Check if connection is currently resetting
+     */
+    isResetting(): boolean;
 }
 
 /**

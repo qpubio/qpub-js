@@ -18,12 +18,15 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     private currentToken: string | null = null;
     private refreshTimeout?: NodeJS.Timeout;
     private logger: ILogger;
+    private _isResetting: boolean = false; // Add reset flag
+    private abortController: AbortController; // Add abort controller
 
     constructor(optionManager: IOptionManager, httpClient: IHttpClient, logger: ILogger) {
         super();
         this.optionManager = optionManager;
         this.httpClient = httpClient;
         this.logger = logger;
+        this.abortController = new AbortController(); // Initialize abort controller
 
         const tokenRequest = this.optionManager.getOption("tokenRequest");
         if (tokenRequest) {
@@ -65,6 +68,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * @throws Error if no authentication credentials are provided
      */
     public async authenticate(): Promise<AuthResponse | null> {
+        // Prevent authentication during reset
+        if (this._isResetting) {
+            this.logger.debug("Authentication blocked - auth manager is resetting");
+            return null;
+        }
+
         const retries =
             this.optionManager.getOption("authenticateRetries") || 0;
         const retryInterval =
@@ -75,6 +84,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
+                // Check if reset was called during authentication
+                if (this._isResetting || this.abortController.signal.aborted) {
+                    this.logger.debug("Authentication cancelled - auth manager was reset or aborted");
+                    return null;
+                }
+
                 if (tokenRequest) {
                     this.logger.debug("Using token request for authentication");
                     return await this.requestToken(tokenRequest);
@@ -91,6 +106,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
                 return response;
             } catch (error) {
+                // Check if operation was aborted
+                if (this.abortController.signal.aborted) {
+                    this.logger.debug("Authentication cancelled due to abort");
+                    return null;
+                }
+
                 const isLastAttempt = attempt === retries;
                 this.logger.warn(
                     `Authentication attempt ${attempt + 1} failed`
@@ -472,7 +493,27 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
     public reset(): void {
         this.logger.info("Resetting auth manager");
+        
+        // 1. Set reset flag to prevent new operations
+        this._isResetting = true;
+        
+        // 2. Abort all pending operations
+        this.abortController.abort();
+        
+        // 3. Create new abort controller for future operations
+        this.abortController = new AbortController();
+        
+        // 4. Clear token and timers
         this.clearToken();
+        
+        // 5. Remove all listeners
         this.removeAllListeners();
+        
+        this.logger.info("Auth manager reset completed");
+    }
+
+    // Getter for abort signal
+    public getAbortSignal(): AbortSignal {
+        return this.abortController.signal;
     }
 }

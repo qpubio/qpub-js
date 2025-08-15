@@ -31,6 +31,7 @@ export class Connection
     private reconnectTimeout?: NodeJS.Timeout;
     private isReconnecting: boolean = false;
     private isIntentionalDisconnect: boolean = false;
+    private _isResetting: boolean = false; // Add reset flag
     private pingTimeout?: NodeJS.Timeout;
     private pendingPings: Map<string, { startTime: number; resolve: (rtt: number) => void; reject: (error: Error) => void; timeout?: NodeJS.Timeout }> = new Map();
     private pingCounter: number = 0; // Sequential counter for unique ping IDs
@@ -66,6 +67,12 @@ export class Connection
     }
 
     public async connect(): Promise<void> {
+        // Prevent connection attempts during reset
+        if (this._isResetting) {
+            this.logger.debug("Connection attempt blocked - connection is resetting");
+            return;
+        }
+
         try {
             this.emit(ConnectionEvents.CONNECTING, { attempt: 1 });
 
@@ -87,6 +94,10 @@ export class Connection
 
     public isConnected(): boolean {
         return this.wsClient.isConnected();
+    }
+
+    public isResetting(): boolean {
+        return this._isResetting;
     }
 
     public ping(): Promise<number> {
@@ -472,6 +483,35 @@ export class Connection
     }
 
     public reset(): void {
+        this.logger.info("Resetting Connection instance");
+        
+        // 1. Set reset flag to prevent new operations
+        this._isResetting = true;
+        
+        // 2. Stop all pending operations
+        this.stopAllPendingOperations();
+        
+        // 3. Clean up timers
+        this.cleanupTimers();
+        
+        // 4. Disconnect WebSocket
+        this.emit(ConnectionEvents.CLOSING, {});
+        this.wsClient.disconnect();
+        this.emit(ConnectionEvents.CLOSED, {});
+        
+        // 5. Reset state
+        this.resetState();
+        
+        // 6. Remove all listeners
+        this.removeAllListeners();
+        
+        this.logger.info("Connection reset completed");
+    }
+
+    private stopAllPendingOperations(): void {
+        // Stop reconnection attempts
+        this.isReconnecting = false;
+        
         // Reject all pending pings with reset-specific error
         this.pendingPings.forEach((pendingPing, pingId) => {
             if (pendingPing.timeout) {
@@ -480,8 +520,9 @@ export class Connection
             pendingPing.reject(new Error("Connection reset"));
         });
         this.pendingPings.clear();
-        
-        // Clean up timers
+    }
+
+    private cleanupTimers(): void {
         if (this.pingTimeout) {
             clearTimeout(this.pingTimeout);
             this.pingTimeout = undefined;
@@ -489,16 +530,14 @@ export class Connection
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
         }
-        
-        this.emit(ConnectionEvents.CLOSING, {});
-        this.wsClient.disconnect();
-        this.emit(ConnectionEvents.CLOSED, {});
-        
+    }
+
+    private resetState(): void {
         this.reconnectAttempts = 0;
         this.isIntentionalDisconnect = false;
+        this._isResetting = false; // Reset the flag
+        this.socket = null;
         
         this.wsClient.reset();
-
-        this.removeAllListeners();
     }
 }
