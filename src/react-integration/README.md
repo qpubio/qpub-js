@@ -99,14 +99,18 @@ function AdvancedChatRoom() {
 }
 ```
 
-### 3. Authentication
+### 3. Authentication & Connection Details
 
 ```tsx
 import { useAuth, useConnection } from "qpub/react";
 
 function AuthenticatedChat() {
     const { isAuthenticated, authenticate, error } = useAuth();
-    const { status: connectionStatus } = useConnection();
+    const { 
+        status: connectionStatus, 
+        connectionId, 
+        connectionDetails 
+    } = useConnection();
 
     if (!isAuthenticated) {
         return (
@@ -120,6 +124,17 @@ function AuthenticatedChat() {
     return (
         <div>
             <div>Connection: {connectionStatus}</div>
+            {connectionId && (
+                <div>
+                    <div>Connection ID: {connectionId}</div>
+                    {connectionDetails && (
+                        <>
+                            <div>Client ID: {connectionDetails.client_id}</div>
+                            <div>Server ID: {connectionDetails.server_id}</div>
+                        </>
+                    )}
+                </div>
+            )}
             <ChatRoom />
         </div>
     );
@@ -235,14 +250,20 @@ const {
 
 #### `useConnection()`
 
-Monitors Socket connection state.
+Monitors Socket connection state and provides connection details.
 
 ```tsx
 const {
+    // State
     status, // 'initialized' | 'connecting' | 'opened' | 'connected' | 'disconnected' | 'closing' | 'closed' | 'failed'
+    connectionId, // string | null - Unique connection identifier
+    connectionDetails, // ConnectionDetails | null - { client_id: string, server_id: string }
+    
+    // Core methods
     connect, // () => Promise<void>
     disconnect, // () => void
     isConnected, // () => boolean
+    ping, // () => Promise<number>
     reset, // () => void
 } = useConnection();
 ```
@@ -316,6 +337,8 @@ import {
     UseAuthReturn,
     UseConnectionReturn,
     SocketProviderProps,
+    Message,
+    ConnectionDetails,
 } from "qpub/react";
 
 // Type-safe usage
@@ -325,6 +348,12 @@ const { ready, publish } = useChannel("chat", {
         console.log(message.data);
     }
 });
+
+// Connection details are also fully typed
+const { connectionId, connectionDetails } = useConnection();
+if (connectionDetails) {
+    console.log(connectionDetails.client_id, connectionDetails.server_id);
+}
 ```
 
 ## Notes

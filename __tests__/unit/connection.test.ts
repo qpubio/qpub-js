@@ -208,8 +208,8 @@ describe('Connection', () => {
             // Simulate server connection message
             const connectionMessage = {
                 action: ActionType.CONNECTED,
-                connectionId: 'conn-123',
-                connectionDetails: { clientId: 'client-123' }
+                connection_id: 'conn-123',
+                connection_details: { client_id: 'client-123', server_id: 'server-123' }
             };
             mocks.mockSocket.onmessage?.({ data: JSON.stringify(connectionMessage) } as MessageEvent);
 

@@ -3,10 +3,10 @@ import { SocketChannel } from "../../core/channels/socket-channel";
 import { Option } from "../../interfaces/option.interface";
 import { ConnectionEvent, ChannelEvent } from "../../types/event.type";
 import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";
-import { Message } from "../../interfaces/message.interface";
+import { Message, ConnectionDetails } from "../../interfaces/message.interface";
 
 // Re-export core types for convenience
-export type { Message };
+export type { Message, ConnectionDetails };
 
 // useChannel return type (Socket-only)
 export interface UseChannelReturn {
@@ -50,6 +50,8 @@ export interface UseAuthReturn {
 export interface UseConnectionReturn {
     // States
     status: ConnectionEvent;
+    connectionId: string | null;
+    connectionDetails: ConnectionDetails | null;
 
     // Core Connection methods
     connect: () => Promise<void>;

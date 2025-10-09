@@ -35,8 +35,8 @@ export interface OutgoingMessage extends BaseMessage {
 // Incoming connection message
 export interface IncomingConnectionMessage extends IncomingMessage {
     action: ActionType.CONNECTED | ActionType.DISCONNECTED;
-    connectionId: string;
-    connectionDetails?: ConnectionDetails;
+    connection_id: string;
+    connection_details?: ConnectionDetails;
 }
 
 // Outgoing connection message
@@ -46,10 +46,10 @@ export interface OutgoingConnectionMessage extends OutgoingMessage {
     connectionDetails?: ConnectionDetails;
 }
 
-// Connection details interface
+// Connection details interface (matches server snake_case format)
 export interface ConnectionDetails {
-    clientId: string;
-    serverId: string;
+    client_id: string;
+    server_id: string;
 }
 
 //

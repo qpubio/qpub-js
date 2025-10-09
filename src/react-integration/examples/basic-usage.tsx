@@ -31,7 +31,7 @@ function BasicExample() {
 }
 
 function ConnectionStatus() {
-    const { status, connect, isConnected, disconnect, reset } = useConnection();
+    const { status, connectionId, connectionDetails, connect, isConnected, disconnect, reset } = useConnection();
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -52,6 +52,17 @@ function ConnectionStatus() {
             <div style={{ color: getStatusColor(status) }}>
                 Status: {status}
             </div>
+            {connectionId && (
+                <div style={{ fontSize: "12px", marginTop: "8px" }}>
+                    <div>Connection ID: {connectionId}</div>
+                    {connectionDetails && (
+                        <>
+                            <div>Client ID: {connectionDetails.client_id}</div>
+                            <div>Server ID: {connectionDetails.server_id}</div>
+                        </>
+                    )}
+                </div>
+            )}
             <div>
                 <button onClick={isConnected() ? disconnect : connect}>
                     {isConnected() ? "Disconnect" : "Connect"}

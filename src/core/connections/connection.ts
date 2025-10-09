@@ -200,8 +200,8 @@ export class Connection
                 if (message.action === ActionType.CONNECTED) {
                     const connMessage = message as IncomingConnectionMessage;
                     this.emit(ConnectionEvents.CONNECTED, {
-                        connectionId: connMessage.connectionId,
-                        connectionDetails: connMessage.connectionDetails,
+                        connectionId: connMessage.connection_id,
+                        connectionDetails: connMessage.connection_details,
                     });
                 } else if (message.action === ActionType.DISCONNECTED) {
                     this.emit(ConnectionEvents.DISCONNECTED, {});

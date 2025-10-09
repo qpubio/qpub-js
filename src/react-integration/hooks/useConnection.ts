@@ -1,6 +1,6 @@
 import React from "react";
 import { ConnectionEvents, ConnectionEvent } from "../../types/event.type";
-import { UseConnectionReturn } from "../context/types";
+import { UseConnectionReturn, ConnectionDetails } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 
 /**
@@ -14,6 +14,8 @@ export function useConnection(): UseConnectionReturn {
     const [status, setStatus] = React.useState<ConnectionEvent>(
         ConnectionEvents.INITIALIZED
     );
+    const [connectionId, setConnectionId] = React.useState<string | null>(null);
+    const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
 
     React.useEffect(() => {
         if (!socket) return;
@@ -33,12 +35,16 @@ export function useConnection(): UseConnectionReturn {
             setStatus(ConnectionEvents.OPENED);
         };
 
-        const handleConnected = () => {
+        const handleConnected = (payload: { connectionId: string; connectionDetails?: ConnectionDetails }) => {
             setStatus(ConnectionEvents.CONNECTED);
+            setConnectionId(payload?.connectionId || null);
+            setConnectionDetails(payload?.connectionDetails || null);
         };
 
         const handleDisconnected = () => {
             setStatus(ConnectionEvents.DISCONNECTED);
+            setConnectionId(null);
+            setConnectionDetails(null);
         };
 
         const handleClosing = () => {
@@ -47,6 +53,8 @@ export function useConnection(): UseConnectionReturn {
 
         const handleClosed = () => {
             setStatus(ConnectionEvents.CLOSED);
+            setConnectionId(null);
+            setConnectionDetails(null);
         };
 
         const handleFailed = () => {
@@ -111,6 +119,8 @@ export function useConnection(): UseConnectionReturn {
 
     return {
         status,
+        connectionId,
+        connectionDetails,
         connect,
         isConnected,
         disconnect,
