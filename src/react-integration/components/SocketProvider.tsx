@@ -2,40 +2,7 @@ import React from "react";
 import { Socket } from "../../core/socket";
 import { SocketContext, SocketContextValue } from "../context/SocketContext";
 import { SocketProviderProps } from "../context/types";
-import { Option } from "../../interfaces/option.interface";
 import { isClient, useIsMounted } from "../utils/ssr";
-
-// Global socket instance management
-interface SocketInstance {
-    socket: Socket;
-    refCount: number;
-}
-
-const globalInstances = new Map<string, SocketInstance>();
-
-// Create instance key from critical options - stable serialization
-function createInstanceKey(options: Partial<Option>): string {
-    const criticalOptions = {
-        apiKey: options.apiKey || "",
-        authUrl: options.authUrl || "",
-        clientId: options.clientId || "",
-        wsHost: options.wsHost || "",
-        wsPort: options.wsPort || null,
-        httpHost: options.httpHost || "",
-        httpPort: options.httpPort || null,
-        isSecure: options.isSecure ?? true,
-    };
-
-    // Sort keys for stable serialization
-    const sortedOptions = Object.keys(criticalOptions)
-        .sort()
-        .reduce((obj, key) => {
-            obj[key] = criticalOptions[key as keyof typeof criticalOptions];
-            return obj;
-        }, {} as any);
-
-    return btoa(JSON.stringify(sortedOptions)).replace(/[+/=]/g, "");
-}
 
 export function SocketProvider({
     children,
@@ -44,114 +11,36 @@ export function SocketProvider({
 }: SocketProviderProps) {
     const isMounted = useIsMounted();
     const [socket, setSocket] = React.useState<Socket | null>(null);
-    const instanceKeyRef = React.useRef<string>("");
-    const optionsRef = React.useRef<Partial<Option>>(options);
-    const cleanupPromiseRef = React.useRef<Promise<void> | null>(null); // Track cleanup
-
-    // Only update options ref if they actually changed
-    const optionsChanged =
-        JSON.stringify(optionsRef.current) !== JSON.stringify(options);
-    if (optionsChanged) {
-        optionsRef.current = options;
-    }
+    const socketRef = React.useRef<Socket | null>(null);
 
     React.useEffect(() => {
         if (!isClient || !isMounted) return;
 
-        const instanceKey = createInstanceKey(optionsRef.current);
+        // Create new Socket instance for this provider
+        const newSocket = new Socket({
+            autoConnect: options.autoConnect ?? true,
+            ...options,
+        });
 
-        // If same instance key and we already have a socket, no need to change
-        if (instanceKeyRef.current === instanceKey && socket) {
-            return;
-        }
+        socketRef.current = newSocket;
+        setSocket(newSocket);
 
-        // Wait for any pending cleanup to complete
-        const performCleanup = async () => {
-            if (cleanupPromiseRef.current) {
-                await cleanupPromiseRef.current;
-            }
-
-            // Release previous instance if we had one
-            if (instanceKeyRef.current && instanceKeyRef.current !== instanceKey) {
-                const prevInstance = globalInstances.get(instanceKeyRef.current);
-                if (prevInstance) {
-                    prevInstance.refCount--;
-
-                    if (prevInstance.refCount <= 0) {
-                        try {
-                            // Perform cleanup synchronously
-                            prevInstance.socket.reset();
-                            globalInstances.delete(instanceKeyRef.current);
-                        } catch (error) {
-                            console.warn(
-                                "[QPub] Error during socket cleanup:",
-                                error
-                            );
-                        }
-                    }
-                }
-            }
-        };
-
-        // Execute cleanup and socket creation
-        const setupSocket = async () => {
-            await performCleanup();
-
-            // Get or create new instance
-            let instance = globalInstances.get(instanceKey);
-            if (!instance) {
-                const newSocket = new Socket({
-                    autoConnect: optionsRef.current.autoConnect ?? true,
-                    ...optionsRef.current,
-                });
-
-                instance = {
-                    socket: newSocket,
-                    refCount: 0,
-                };
-                globalInstances.set(instanceKey, instance);
-            }
-
-            instance.refCount++;
-            instanceKeyRef.current = instanceKey;
-            setSocket(instance.socket);
-        };
-
-        // Execute setup and track cleanup promise
-        cleanupPromiseRef.current = setupSocket();
-    }, [isMounted, optionsChanged]);
-
-    // Cleanup effect - separate from main effect to avoid issues
-    React.useEffect(() => {
+        // Cleanup on unmount or options change
         return () => {
-            if (instanceKeyRef.current) {
-                const currentInstance = globalInstances.get(
-                    instanceKeyRef.current
-                );
-                if (currentInstance) {
-                    currentInstance.refCount--;
-
-                    if (currentInstance.refCount <= 0) {
-                        try {
-                            currentInstance.socket.reset();
-                        } catch (error) {
-                            console.warn(
-                                "[QPub] Error during final cleanup:",
-                                error
-                            );
-                        }
-                        globalInstances.delete(instanceKeyRef.current);
-                    }
-                }
+            try {
+                newSocket.reset();
+            } catch (error) {
+                console.warn("[QPub] Error during socket cleanup:", error);
             }
+            socketRef.current = null;
         };
-    }, []);
+    }, [isMounted, JSON.stringify(options)]);
 
     const contextValue: SocketContextValue | null = React.useMemo(() => {
         if (!socket) return null;
-        return { 
+        return {
             socket,
-            instanceId: socket.getInstanceId()
+            instanceId: socket.getInstanceId(),
         };
     }, [socket]);
 
