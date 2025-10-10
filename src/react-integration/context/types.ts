@@ -22,7 +22,7 @@ export interface UseChannelReturn {
     subscribe: (callback: (message: Message) => void) => void;
     resubscribe: () => Promise<void>;
     unsubscribe: () => void;
-    publish: (data: any, event?: string, clientId?: string) => Promise<void>;
+    publish: (data: any, event?: string, alias?: string) => Promise<void>;
     isSubscribed: () => boolean;
     isPendingSubscribe: () => boolean;
     setPendingSubscribe: (pending: boolean) => void;

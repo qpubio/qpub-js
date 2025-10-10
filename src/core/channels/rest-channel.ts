@@ -23,7 +23,7 @@ export class RestChannel extends BaseChannel {
     public async publish<T = any>(
         data: any,
         event?: string,
-        clientId?: string
+        alias?: string
     ): Promise<T> {
         try {
             const headers = this.authManager.getAuthHeaders();
@@ -38,7 +38,7 @@ export class RestChannel extends BaseChannel {
             const requestPayload: RestPublishRequest = {
                 messages: [
                     {
-                        clientId,
+                        alias,
                         event,
                         data,
                     },

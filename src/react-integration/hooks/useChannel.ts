@@ -126,9 +126,9 @@ export function useChannel(channelName: string): UseChannelReturn {
     }, [channel]);
 
     const publish = React.useCallback(
-        async (data: any, event?: string, clientId?: string) => {
+        async (data: any, event?: string, alias?: string) => {
             if (!channel) throw new Error("Channel not available");
-            return channel.publish(data, event, clientId);
+            return channel.publish(data, event, alias);
         },
         [channel]
     );

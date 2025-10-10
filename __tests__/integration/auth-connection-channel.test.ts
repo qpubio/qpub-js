@@ -165,11 +165,11 @@ describe('Integration: Component Interaction Tests', () => {
                 reset: jest.fn()
             } as jest.Mocked<IOptionManager>;
 
-            // Create a valid JWT token for testing (must include kid, clientId, and exp)
+            // Create a valid JWT token for testing (must include kid, alias, and exp)
             function createValidJWT() {
                 const header = { alg: 'HS256', typ: 'JWT', kid: 'test-key-id' };
                 const payload = { 
-                    clientId: 'test-client-id', 
+                    alias: 'test-alias', 
                     exp: Math.floor(Date.now() / 1000) + 3600 
                 };
                 const encodedHeader = btoa(JSON.stringify(header));

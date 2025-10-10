@@ -242,7 +242,7 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     public getAuthHeaders(): HeadersInit {
         const apiKey = this.optionManager.getOption("apiKey");
         const token = this.getToken();
-        const clientId = this.optionManager.getOption("clientId");
+        const alias = this.optionManager.getOption("alias");
 
         if (token) {
             return {
@@ -253,9 +253,9 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
                 Authorization: `Basic ${btoa(apiKey)}`,
             };
             
-            // Add clientId header for basic auth if provided
-            if (clientId) {
-                headers["X-Client-ID"] = clientId;
+            // Add alias header for basic auth if provided
+            if (alias) {
+                headers["X-Alias"] = alias;
             }
             
             return headers;
@@ -270,16 +270,16 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     public getAuthQueryParams(): string {
         const apiKey = this.optionManager.getOption("apiKey");
         const token = this.getToken();
-        const clientId = this.optionManager.getOption("clientId");
+        const alias = this.optionManager.getOption("alias");
 
         if (token) {
             return `access_token=${encodeURIComponent(token)}`;
         } else if (apiKey) {
             let params = `api_key=${encodeURIComponent(apiKey)}`;
             
-            // Add clientId query param for basic auth if provided
-            if (clientId) {
-                params += `&client_id=${encodeURIComponent(clientId)}`;
+            // Add alias query param for basic auth if provided
+            if (alias) {
+                params += `&alias=${encodeURIComponent(alias)}`;
             }
             
             return params;
@@ -324,8 +324,8 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
                     Math.floor(Date.now() / 1000) + (options.expiresIn || 3600),
             };
 
-            if (options.clientId !== undefined) {
-                payload.clientId = options.clientId;
+            if (options.alias !== undefined) {
+                payload.alias = options.alias;
             }
 
             if (options.permissions !== undefined) {
@@ -416,8 +416,8 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
             // Create signature data based on provided options
             let dataToSign = `${apiKeyId}.${timestamp}`;
-            if (options.clientId !== undefined) {
-                dataToSign += `.${options.clientId}`;
+            if (options.alias !== undefined) {
+                dataToSign += `.${options.alias}`;
             }
             if (options.permissions !== undefined) {
                 dataToSign += `.${JSON.stringify(options.permissions)}`;
@@ -431,8 +431,8 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
                 signature,
             };
 
-            if (options.clientId !== undefined) {
-                request.clientId = options.clientId;
+            if (options.alias !== undefined) {
+                request.alias = options.alias;
             }
             if (options.permissions !== undefined) {
                 request.permissions = options.permissions;

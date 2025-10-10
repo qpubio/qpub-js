@@ -48,6 +48,7 @@ export interface OutgoingConnectionMessage extends OutgoingMessage {
 
 // Connection details interface (matches server snake_case format)
 export interface ConnectionDetails {
+    alias: string;
     client_id: string;
     server_id: string;
 }
@@ -95,7 +96,7 @@ export interface OutgoingDataMessage extends OutgoingMessage {
 
 // Data message payload interface
 export interface DataMessagePayload {
-    clientId?: string;
+    alias?: string;
     event?: string;
     data?: any;
 }

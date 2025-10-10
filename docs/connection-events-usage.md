@@ -5,24 +5,26 @@ This example demonstrates how consumers can use the exposed event types for full
 ## Import the Required Types
 
 ```typescript
-import { 
-    QPub, 
-    ConnectionEvents, 
-    ConnectionEventPayloads, 
+import {
+    QPub,
+    ConnectionEvents,
+    ConnectionEventPayloads,
     ConnectionEventListener,
-    EventListener 
-} from 'qpub';
+    EventListener,
+} from "qpub";
 ```
 
 ## What You Get
 
 ### 🔧 Runtime Constants
+
 - `ConnectionEvents.CONNECTED` - for event registration
-- `ConnectionEvents.FAILED` - for error handling  
+- `ConnectionEvents.FAILED` - for error handling
 - `ConnectionEvents.CONNECTING` - for connection state tracking
 - All other connection events...
 
 ### 📝 Type Definitions
+
 - `ConnectionEventPayloads` - payload structure for each event
 - `ConnectionEventListener<K>` - type-safe event listener helpers
 - `EventListener<T>` - generic event listener type
@@ -50,23 +52,24 @@ socket.connection.on(ConnectionEvents.FAILED, (data) => {
 
 ```typescript
 // ✅ Fully typed event handlers
-const handleConnected: ConnectionEventListener<'connected'> = (payload) => {
+const handleConnected: ConnectionEventListener<"connected"> = (payload) => {
     // payload is fully typed as ConnectionEventPayloads['connected']
     console.log(`✅ Connected! ID: ${payload.connectionId}`);
-    
+
     if (payload.connectionDetails) {
-        console.log(`Server ID: ${payload.connectionDetails.serverId}`);
-        console.log(`Client ID: ${payload.connectionDetails.clientId}`);
+        console.log(`Alias: ${payload.connectionDetails.alias}`);
+        console.log(`Server ID: ${payload.connectionDetails.server_id}`);
+        console.log(`Client ID: ${payload.connectionDetails.client_id}`);
     }
 };
 
-const handleFailed: ConnectionEventListener<'failed'> = (payload) => {
-    // payload is fully typed as ConnectionEventPayloads['failed']  
+const handleFailed: ConnectionEventListener<"failed"> = (payload) => {
+    // payload is fully typed as ConnectionEventPayloads['failed']
     console.error(`💥 Connection failed in context: ${payload.context}`);
     console.error(`Error: ${payload.error.message}`);
-    
+
     // TypeScript knows error can be Error or ErrorInfo
-    if ('code' in payload.error) {
+    if ("code" in payload.error) {
         console.error(`Error code: ${payload.error.code}`);
         console.error(`Status code: ${payload.error.statusCode}`);
     }
@@ -85,14 +88,17 @@ const createTypedListener = <K extends keyof ConnectionEventPayloads>(
     eventName: K
 ): EventListener<ConnectionEventPayloads[K]> => {
     return (payload) => {
-        console.log(`Event ${String(eventName)} triggered with payload:`, payload);
+        console.log(
+            `Event ${String(eventName)} triggered with payload:`,
+            payload
+        );
         // payload is correctly typed based on K
     };
 };
 
 // Usage with full type safety
-const connectingListener = createTypedListener('connecting');
-const openedListener = createTypedListener('opened');
+const connectingListener = createTypedListener("connecting");
+const openedListener = createTypedListener("opened");
 
 socket.connection.on(ConnectionEvents.CONNECTING, connectingListener);
 socket.connection.on(ConnectionEvents.OPENED, openedListener);
@@ -112,41 +118,57 @@ class ConnectionManager {
 
     private setupEventListeners(): void {
         // Type-safe event handlers with proper payload types
-        this.connection.on(ConnectionEvents.CONNECTING, this.handleConnecting.bind(this));
-        this.connection.on(ConnectionEvents.CONNECTED, this.handleConnected.bind(this));
-        this.connection.on(ConnectionEvents.DISCONNECTED, this.handleDisconnected.bind(this));
-        this.connection.on(ConnectionEvents.FAILED, this.handleFailed.bind(this));
+        this.connection.on(
+            ConnectionEvents.CONNECTING,
+            this.handleConnecting.bind(this)
+        );
+        this.connection.on(
+            ConnectionEvents.CONNECTED,
+            this.handleConnected.bind(this)
+        );
+        this.connection.on(
+            ConnectionEvents.DISCONNECTED,
+            this.handleDisconnected.bind(this)
+        );
+        this.connection.on(
+            ConnectionEvents.FAILED,
+            this.handleFailed.bind(this)
+        );
     }
 
-    private handleConnecting: ConnectionEventListener<'connecting'> = (payload) => {
+    private handleConnecting: ConnectionEventListener<"connecting"> = (
+        payload
+    ) => {
         console.log(`🔄 Connecting... (attempt ${payload.attempt})`);
         this.reconnectAttempts = payload.attempt;
     };
 
-    private handleConnected: ConnectionEventListener<'connected'> = (payload) => {
+    private handleConnected: ConnectionEventListener<"connected"> = (
+        payload
+    ) => {
         console.log(`✅ Connected! ID: ${payload.connectionId}`);
         this.isConnected = true;
         this.reconnectAttempts = 0;
     };
 
-    private handleFailed: ConnectionEventListener<'failed'> = (payload) => {
+    private handleFailed: ConnectionEventListener<"failed"> = (payload) => {
         console.error(`💥 Connection failed: ${payload.error.message}`);
         console.error(`Context: ${payload.context}`);
         this.isConnected = false;
-        
+
         // Handle different failure contexts
         switch (payload.context) {
-            case 'websocket':
-                console.log('WebSocket connection issue - will retry');
+            case "websocket":
+                console.log("WebSocket connection issue - will retry");
                 break;
-            case 'authentication':
-                console.log('Authentication failed - check credentials');
+            case "authentication":
+                console.log("Authentication failed - check credentials");
                 break;
-            case 'reconnection':
-                console.log('Reconnection failed - stopping attempts');
+            case "reconnection":
+                console.log("Reconnection failed - stopping attempts");
                 break;
             default:
-                console.log('Unknown failure context');
+                console.log("Unknown failure context");
         }
     };
 
@@ -166,7 +188,7 @@ socket.connection.on(ConnectionEvents.CONNECTING, (payload) => {
     } else {
         console.log("Initial connection attempt");
     }
-    
+
     if (payload.url) {
         console.log(`Connecting to: ${payload.url}`);
     }
@@ -175,16 +197,16 @@ socket.connection.on(ConnectionEvents.CONNECTING, (payload) => {
 
 ## Available Connection Event Types
 
-| Event | Payload Type | Description |
-|-------|-------------|-------------|
-| `INITIALIZED` | `void` | Connection instance created |
-| `CONNECTING` | `{ attempt: number; url?: string }` | Connection attempt starting |
-| `OPENED` | `{ connectionId?: string }` | WebSocket connection opened |
-| `CONNECTED` | `{ connectionId: string; connectionDetails?: ConnectionDetails }` | Fully connected |
-| `DISCONNECTED` | `{ reason?: string; code?: number }` | Disconnected from server |
-| `CLOSING` | `{ reason?: string }` | Connection is closing |
-| `CLOSED` | `{ code?: number; reason?: string; wasClean?: boolean }` | Connection closed |
-| `FAILED` | `{ error: Error \| ErrorInfo; context?: string }` | Connection failed |
+| Event          | Payload Type                                                      | Description                 |
+| -------------- | ----------------------------------------------------------------- | --------------------------- |
+| `INITIALIZED`  | `void`                                                            | Connection instance created |
+| `CONNECTING`   | `{ attempt: number; url?: string }`                               | Connection attempt starting |
+| `OPENED`       | `{ connectionId?: string }`                                       | WebSocket connection opened |
+| `CONNECTED`    | `{ connectionId: string; connectionDetails?: ConnectionDetails }` | Fully connected             |
+| `DISCONNECTED` | `{ reason?: string; code?: number }`                              | Disconnected from server    |
+| `CLOSING`      | `{ reason?: string }`                                             | Connection is closing       |
+| `CLOSED`       | `{ code?: number; reason?: string; wasClean?: boolean }`          | Connection closed           |
+| `FAILED`       | `{ error: Error \| ErrorInfo; context?: string }`                 | Connection failed           |
 
 ## Benefits
 
@@ -199,22 +221,26 @@ socket.connection.on(ConnectionEvents.CONNECTING, (payload) => {
 The same pattern works for channel and auth events:
 
 ```typescript
-import { 
-    ChannelEvents, 
-    ChannelEventPayloads, 
+import {
+    ChannelEvents,
+    ChannelEventPayloads,
     ChannelEventListener,
     AuthEvents,
     AuthEventPayloads,
-    AuthEventListener
-} from 'qpub';
+    AuthEventListener,
+} from "qpub";
 
 // Channel events
-const handleChannelSubscribed: ChannelEventListener<'subscribed'> = (payload) => {
-    console.log(`Subscribed to ${payload.channelName} with ID: ${payload.subscriptionId}`);
+const handleChannelSubscribed: ChannelEventListener<"subscribed"> = (
+    payload
+) => {
+    console.log(
+        `Subscribed to ${payload.channelName} with ID: ${payload.subscriptionId}`
+    );
 };
 
-// Auth events  
-const handleTokenUpdated: AuthEventListener<'token_updated'> = (payload) => {
+// Auth events
+const handleTokenUpdated: AuthEventListener<"token_updated"> = (payload) => {
     console.log(`Token updated, expires at: ${payload.expiresAt}`);
 };
-``` 
+```

@@ -11,7 +11,7 @@ export interface Option {
     authOptions?: AuthOptions;
     tokenRequest?: TokenRequest;
 
-    clientId?: string; // Optional client ID for basic auth (untrusted client)
+    alias?: string; // Optional client alias for basic auth (untrusted client)
 
     httpHost?: string;
     httpPort?: number | null;

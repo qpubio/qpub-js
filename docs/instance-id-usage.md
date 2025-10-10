@@ -115,11 +115,11 @@ function MultiInstanceApp() {
     
     return (
         <div>
-            <SocketProvider options={{ clientId: 'client-1' }}>
+            <SocketProvider options={{ alias: 'alias-1' }}>
                 <InstanceTracker onMount={(id) => setInstances(prev => [...prev, id])} />
             </SocketProvider>
             
-            <SocketProvider options={{ clientId: 'client-2' }}>
+            <SocketProvider options={{ alias: 'alias-2' }}>
                 <InstanceTracker onMount={(id) => setInstances(prev => [...prev, id])} />
             </SocketProvider>
             

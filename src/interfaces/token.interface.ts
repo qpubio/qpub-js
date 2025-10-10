@@ -4,14 +4,14 @@ interface Permissions {
 
 export interface TokenOptions {
     permissions?: Permissions; // Permissions
-    clientId?: string; // Client identifier
+    alias?: string; // Client identifier
     expiresIn?: number; // Token expiration in seconds
 }
 
 export interface TokenRequest {
     kid: string; // API Key ID
     permissions?: Permissions; // Permissions
-    clientId?: string; // Client identifier
+    alias?: string; // Client identifier
     timestamp: number; // Request timestamp
     signature: string; // Request signature
 }

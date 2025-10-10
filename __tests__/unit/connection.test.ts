@@ -1,22 +1,22 @@
-import { Connection } from '../../src/core/connections/connection';
-import { ConnectionEvents, AuthEvents } from '../../src/types/event.type';
-import { ActionType } from '../../src/types/action.type';
+import { Connection } from "../../src/core/connections/connection";
+import { ConnectionEvents, AuthEvents } from "../../src/types/event.type";
+import { ActionType } from "../../src/types/action.type";
 import {
     IOptionManager,
     IAuthManager,
     IWebSocketClient,
     ISocketChannelManager,
     ILogger,
-} from '../../src/interfaces/services.interface';
+} from "../../src/interfaces/services.interface";
 
-describe('Connection', () => {
+describe("Connection", () => {
     // Track Connection instances for cleanup
     const connectionInstances: Connection[] = [];
 
     // Helper function to create manual mocks
     function createTestMocks(optionOverrides: any = {}) {
         const defaultOptions = {
-            wsHost: 'socket.qpub.io',
+            wsHost: "socket.qpub.io",
             wsPort: null,
             isSecure: true,
             autoConnect: true,
@@ -28,26 +28,30 @@ describe('Connection', () => {
             maxReconnectDelayMs: 30000,
             reconnectBackoffMultiplier: 1.5,
             pingTimeoutMs: 60000,
-            ...optionOverrides
+            ...optionOverrides,
         };
 
         const optionManager = {
-            getOption: jest.fn((key?: any) => key ? defaultOptions[key] : defaultOptions),
+            getOption: jest.fn((key?: any) =>
+                key ? defaultOptions[key] : defaultOptions
+            ),
             setOption: jest.fn(),
-            reset: jest.fn()
+            reset: jest.fn(),
         } as jest.Mocked<IOptionManager>;
 
         const authManager = {
             authenticate: jest.fn().mockResolvedValue(null),
             isAuthenticated: jest.fn().mockReturnValue(true),
             shouldAutoAuthenticate: jest.fn().mockReturnValue(true),
-            getAuthenticateUrl: jest.fn().mockImplementation((baseUrl) => `${baseUrl}?token=test-token`),
-            getCurrentToken: jest.fn().mockReturnValue('test-token'),
+            getAuthenticateUrl: jest
+                .fn()
+                .mockImplementation((baseUrl) => `${baseUrl}?token=test-token`),
+            getCurrentToken: jest.fn().mockReturnValue("test-token"),
             requestToken: jest.fn().mockResolvedValue({}),
             getAuthHeaders: jest.fn().mockReturnValue({}),
-            getToken: jest.fn().mockReturnValue('test-token'),
+            getToken: jest.fn().mockReturnValue("test-token"),
             clearToken: jest.fn(),
-            getAuthQueryParams: jest.fn().mockReturnValue(''),
+            getAuthQueryParams: jest.fn().mockReturnValue(""),
             reset: jest.fn(),
             on: jest.fn(),
             off: jest.fn(),
@@ -58,7 +62,7 @@ describe('Connection', () => {
             listenerCount: jest.fn().mockReturnValue(0),
             listeners: jest.fn().mockReturnValue([]),
             rawListeners: jest.fn().mockReturnValue([]),
-            events: {}  as any
+            events: {} as any,
         } as unknown as jest.Mocked<IAuthManager>;
 
         // Mock WebSocket that we can control
@@ -71,7 +75,7 @@ describe('Connection', () => {
             onping: null as any,
             onpong: null as any,
             close: jest.fn(),
-            send: jest.fn()
+            send: jest.fn(),
         };
 
         const wsClient = {
@@ -80,7 +84,7 @@ describe('Connection', () => {
             isConnected: jest.fn().mockReturnValue(false),
             getSocket: jest.fn().mockReturnValue(mockSocket),
             send: jest.fn(),
-            reset: jest.fn()
+            reset: jest.fn(),
         } as jest.Mocked<IWebSocketClient>;
 
         const channelManager = {
@@ -89,7 +93,7 @@ describe('Connection', () => {
             remove: jest.fn(),
             reset: jest.fn(),
             resubscribeAllChannels: jest.fn(),
-            pendingSubscribeAllChannels: jest.fn()
+            pendingSubscribeAllChannels: jest.fn(),
         } as jest.Mocked<ISocketChannelManager>;
 
         const logger = {
@@ -97,31 +101,47 @@ describe('Connection', () => {
             warn: jest.fn(),
             info: jest.fn(),
             debug: jest.fn(),
-            trace: jest.fn()
+            trace: jest.fn(),
         } as jest.Mocked<ILogger>;
 
-        return { optionManager, authManager, wsClient, channelManager, logger, mockSocket };
+        return {
+            optionManager,
+            authManager,
+            wsClient,
+            channelManager,
+            logger,
+            mockSocket,
+        };
     }
 
     // Helper to create Connection and track for cleanup
-    function createConnection(mocks: ReturnType<typeof createTestMocks>): Connection {
-        const { optionManager, authManager, wsClient, channelManager, logger } = mocks;
-        const connection = new Connection(optionManager, authManager, wsClient, channelManager, logger);
+    function createConnection(
+        mocks: ReturnType<typeof createTestMocks>
+    ): Connection {
+        const { optionManager, authManager, wsClient, channelManager, logger } =
+            mocks;
+        const connection = new Connection(
+            optionManager,
+            authManager,
+            wsClient,
+            channelManager,
+            logger
+        );
         connectionInstances.push(connection);
         return connection;
     }
 
     // Cleanup after each test
     afterEach(() => {
-        connectionInstances.forEach(connection => {
+        connectionInstances.forEach((connection) => {
             connection.reset();
         });
         connectionInstances.length = 0;
         jest.clearAllTimers();
     });
 
-    describe('Initialization', () => {
-        it('should initialize with dependencies and setup auth listeners', () => {
+    describe("Initialization", () => {
+        it("should initialize with dependencies and setup auth listeners", () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
@@ -141,53 +161,59 @@ describe('Connection', () => {
 
             // Should emit initialized event
             const initializeEvents: any[] = [];
-            connection.on(ConnectionEvents.INITIALIZED, () => initializeEvents.push('initialized'));
-            
+            connection.on(ConnectionEvents.INITIALIZED, () =>
+                initializeEvents.push("initialized")
+            );
+
             // Create new connection to test event emission
             const newConnection = createConnection(createTestMocks());
             expect(initializeEvents).toHaveLength(0); // Previous connection didn't emit to this listener
         });
 
-        it('should generate correct authenticated WebSocket URL', async () => {
+        it("should generate correct authenticated WebSocket URL", async () => {
             const mocks = createTestMocks({
                 isSecure: true,
-                wsHost: 'test.example.com',
-                wsPort: 443
+                wsHost: "test.example.com",
+                wsPort: 443,
             });
             const connection = createConnection(mocks);
 
             await connection.connect();
 
             expect(mocks.wsClient.connect).toHaveBeenCalledWith(
-                'wss://test.example.com:443/v1?token=test-token'
+                "wss://test.example.com:443/v1?token=test-token"
             );
         });
 
-        it('should generate WebSocket URL without port when not specified', async () => {
+        it("should generate WebSocket URL without port when not specified", async () => {
             const mocks = createTestMocks({
                 isSecure: false,
-                wsHost: 'localhost',
-                wsPort: null
+                wsHost: "localhost",
+                wsPort: null,
             });
             const connection = createConnection(mocks);
 
             await connection.connect();
 
             expect(mocks.wsClient.connect).toHaveBeenCalledWith(
-                'ws://localhost/v1?token=test-token'
+                "ws://localhost/v1?token=test-token"
             );
         });
     });
 
-    describe('Connection Lifecycle', () => {
-        it('should handle successful connection flow', async () => {
+    describe("Connection Lifecycle", () => {
+        it("should handle successful connection flow", async () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
             const events: string[] = [];
-            connection.on(ConnectionEvents.CONNECTING, () => events.push('connecting'));
-            connection.on(ConnectionEvents.OPENED, () => events.push('opened'));
-            connection.on(ConnectionEvents.CONNECTED, () => events.push('connected'));
+            connection.on(ConnectionEvents.CONNECTING, () =>
+                events.push("connecting")
+            );
+            connection.on(ConnectionEvents.OPENED, () => events.push("opened"));
+            connection.on(ConnectionEvents.CONNECTED, () =>
+                events.push("connected")
+            );
 
             // Start connection
             await connection.connect();
@@ -195,28 +221,36 @@ describe('Connection', () => {
             // Verify authentication and connection
             expect(mocks.authManager.authenticate).toHaveBeenCalled();
             expect(mocks.wsClient.connect).toHaveBeenCalled();
-            expect(events).toContain('connecting');
+            expect(events).toContain("connecting");
 
             // Simulate WebSocket opened
             mocks.mockSocket.readyState = WebSocket.OPEN;
             mocks.wsClient.isConnected.mockReturnValue(true);
             mocks.mockSocket.onopen?.();
 
-            expect(events).toContain('opened');
-            expect(mocks.channelManager.resubscribeAllChannels).toHaveBeenCalled();
+            expect(events).toContain("opened");
+            expect(
+                mocks.channelManager.resubscribeAllChannels
+            ).toHaveBeenCalled();
 
             // Simulate server connection message
             const connectionMessage = {
                 action: ActionType.CONNECTED,
-                connection_id: 'conn-123',
-                connection_details: { client_id: 'client-123', server_id: 'server-123' }
+                connection_id: "conn-123",
+                connection_details: {
+                    alias: "alias-123",
+                    client_id: "client-123",
+                    server_id: "server-123",
+                },
             };
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(connectionMessage) } as MessageEvent);
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(connectionMessage),
+            } as MessageEvent);
 
-            expect(events).toContain('connected');
+            expect(events).toContain("connected");
         });
 
-        it('should skip authentication when auto-authenticate is disabled', async () => {
+        it("should skip authentication when auto-authenticate is disabled", async () => {
             const mocks = createTestMocks();
             mocks.authManager.shouldAutoAuthenticate.mockReturnValue(false);
             const connection = createConnection(mocks);
@@ -227,21 +261,25 @@ describe('Connection', () => {
             expect(mocks.wsClient.connect).toHaveBeenCalled();
         });
 
-        it('should handle authentication errors during connection', async () => {
+        it("should handle authentication errors during connection", async () => {
             const mocks = createTestMocks();
-            mocks.authManager.authenticate.mockRejectedValue(new Error('Auth failed'));
+            mocks.authManager.authenticate.mockRejectedValue(
+                new Error("Auth failed")
+            );
             const connection = createConnection(mocks);
 
             const errorEvents: any[] = [];
-            connection.on(ConnectionEvents.FAILED, (event) => errorEvents.push(event));
+            connection.on(ConnectionEvents.FAILED, (event) =>
+                errorEvents.push(event)
+            );
 
             await connection.connect();
 
             expect(errorEvents).toHaveLength(1);
-            expect(errorEvents[0].error.message).toContain('Auth failed');
+            expect(errorEvents[0].error.message).toContain("Auth failed");
         });
 
-        it('should track connection state correctly', () => {
+        it("should track connection state correctly", () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
@@ -253,21 +291,21 @@ describe('Connection', () => {
             expect(connection.isConnected()).toBe(true);
         });
 
-        it('should disconnect cleanly', () => {
+        it("should disconnect cleanly", () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
             const events: string[] = [];
-            connection.on(ConnectionEvents.CLOSED, () => events.push('closed'));
+            connection.on(ConnectionEvents.CLOSED, () => events.push("closed"));
 
             connection.disconnect();
 
             expect(mocks.wsClient.disconnect).toHaveBeenCalled();
-            expect(events).toContain('closed');
+            expect(events).toContain("closed");
         });
     });
 
-    describe('WebSocket Event Handling', () => {
+    describe("WebSocket Event Handling", () => {
         let mocks: ReturnType<typeof createTestMocks>;
         let connection: Connection;
 
@@ -277,14 +315,16 @@ describe('Connection', () => {
             await connection.connect(); // Set up socket listeners
         });
 
-        it('should handle WebSocket close events', () => {
+        it("should handle WebSocket close events", () => {
             const events: any[] = [];
-            connection.on(ConnectionEvents.CLOSED, (event) => events.push(event));
+            connection.on(ConnectionEvents.CLOSED, (event) =>
+                events.push(event)
+            );
 
             const closeEvent = {
                 code: 1000,
-                reason: 'Normal closure',
-                wasClean: true
+                reason: "Normal closure",
+                wasClean: true,
             } as CloseEvent;
 
             mocks.mockSocket.onclose?.(closeEvent);
@@ -292,50 +332,62 @@ describe('Connection', () => {
             expect(events).toHaveLength(1);
             expect(events[0]).toMatchObject({
                 code: 1000,
-                reason: 'Normal closure',
-                wasClean: true
+                reason: "Normal closure",
+                wasClean: true,
             });
-            expect(mocks.channelManager.pendingSubscribeAllChannels).toHaveBeenCalled();
+            expect(
+                mocks.channelManager.pendingSubscribeAllChannels
+            ).toHaveBeenCalled();
         });
 
-        it('should handle WebSocket error events', () => {
+        it("should handle WebSocket error events", () => {
             const events: any[] = [];
-            connection.on(ConnectionEvents.FAILED, (event) => events.push(event));
+            connection.on(ConnectionEvents.FAILED, (event) =>
+                events.push(event)
+            );
 
-            const errorEvent = new Event('error');
+            const errorEvent = new Event("error");
             mocks.mockSocket.onerror?.(errorEvent);
 
             expect(events).toHaveLength(1);
-            expect(events[0].error.message).toBe('WebSocket connection error');
-            expect(events[0].context).toBe('websocket');
-            expect(mocks.channelManager.pendingSubscribeAllChannels).toHaveBeenCalled();
+            expect(events[0].error.message).toBe("WebSocket connection error");
+            expect(events[0].context).toBe("websocket");
+            expect(
+                mocks.channelManager.pendingSubscribeAllChannels
+            ).toHaveBeenCalled();
         });
 
-        it('should handle malformed message events', () => {
+        it("should handle malformed message events", () => {
             const events: any[] = [];
-            connection.on(ConnectionEvents.FAILED, (event) => events.push(event));
+            connection.on(ConnectionEvents.FAILED, (event) =>
+                events.push(event)
+            );
 
-            const invalidMessage = { data: 'invalid-json' } as MessageEvent;
+            const invalidMessage = { data: "invalid-json" } as MessageEvent;
             mocks.mockSocket.onmessage?.(invalidMessage);
 
             expect(events).toHaveLength(1);
-            expect(events[0].context).toBe('message_processing');
+            expect(events[0].context).toBe("message_processing");
         });
 
-        it('should handle DISCONNECTED action messages', () => {
+        it("should handle DISCONNECTED action messages", () => {
             const events: string[] = [];
-            connection.on(ConnectionEvents.DISCONNECTED, () => events.push('disconnected'));
+            connection.on(ConnectionEvents.DISCONNECTED, () =>
+                events.push("disconnected")
+            );
 
             const disconnectMessage = {
-                action: ActionType.DISCONNECTED
+                action: ActionType.DISCONNECTED,
             };
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(disconnectMessage) } as MessageEvent);
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(disconnectMessage),
+            } as MessageEvent);
 
-            expect(events).toContain('disconnected');
+            expect(events).toContain("disconnected");
         });
     });
 
-    describe('Ping Functionality', () => {
+    describe("Ping Functionality", () => {
         let mocks: ReturnType<typeof createTestMocks>;
         let connection: Connection;
 
@@ -343,19 +395,19 @@ describe('Connection', () => {
             mocks = createTestMocks({ pingTimeoutMs: 5000 });
             connection = createConnection(mocks);
             await connection.connect();
-            
+
             // Simulate connection opened
             mocks.mockSocket.onopen?.();
         });
 
-        it('should set up ping timeout on connection open', () => {
+        it("should set up ping timeout on connection open", () => {
             expect(mocks.mockSocket.onping).toBeDefined();
             expect(mocks.mockSocket.onpong).toBeDefined();
         });
 
-        it('should handle ping timeout and disconnect', () => {
+        it("should handle ping timeout and disconnect", () => {
             jest.useFakeTimers();
-            const disconnectSpy = jest.spyOn(connection, 'disconnect');
+            const disconnectSpy = jest.spyOn(connection, "disconnect");
 
             // Simulate ping received
             mocks.mockSocket.onping?.();
@@ -367,272 +419,312 @@ describe('Connection', () => {
             jest.useRealTimers();
         });
 
-        it('should send ping with unique ID and resolve with RTT', async () => {
-            const mockPerformanceNow = jest.spyOn(performance, 'now');
+        it("should send ping with unique ID and resolve with RTT", async () => {
+            const mockPerformanceNow = jest.spyOn(performance, "now");
             mockPerformanceNow.mockReturnValueOnce(1000); // ping start
             mockPerformanceNow.mockReturnValueOnce(1050); // pong received (50ms later)
-            
-            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
-            
+
+            const sendSpy = jest.spyOn(mocks.mockSocket, "send");
+
             // Start the ping
             const pingPromise = connection.ping();
-            
+
             // Verify ping message was sent
             expect(sendSpy).toHaveBeenCalledWith(
                 expect.stringContaining('"action":12') // ActionType.PING = 12
             );
-            
+
             const sentMessage = JSON.parse(sendSpy.mock.calls[0][0]);
             expect(sentMessage).toMatchObject({
                 action: 12,
-                timestamp: expect.any(Number)
+                timestamp: expect.any(Number),
             });
-            
+
             // Simulate server response
             const pongMessage = {
                 action: 13, // ActionType.PONG
-                timestamp: sentMessage.timestamp // Echo back the ping ID
+                timestamp: sentMessage.timestamp, // Echo back the ping ID
             };
-            
+
             // Trigger message handler (simulate receiving pong)
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pongMessage) } as MessageEvent);
-            
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(pongMessage),
+            } as MessageEvent);
+
             // Verify ping resolves with correct RTT
             const rtt = await pingPromise;
             expect(rtt).toBe(50);
-            
+
             mockPerformanceNow.mockRestore();
             sendSpy.mockRestore();
         });
 
-        it('should reject ping if connection is not open', async () => {
+        it("should reject ping if connection is not open", async () => {
             // Set socket to null to simulate disconnected state
             (connection as any).socket = null;
-            
-            await expect(connection.ping()).rejects.toThrow('WebSocket is not connected');
+
+            await expect(connection.ping()).rejects.toThrow(
+                "WebSocket is not connected"
+            );
         });
 
-        it('should reject ping on timeout', async () => {
+        it("should reject ping on timeout", async () => {
             jest.useFakeTimers();
-            
+
             const pingPromise = connection.ping();
-            
+
             // Advance time past timeout
             jest.advanceTimersByTime(11000); // Longer than default 10s timeout
-            
-            await expect(pingPromise).rejects.toThrow('Ping timeout');
-            
+
+            await expect(pingPromise).rejects.toThrow("Ping timeout");
+
             jest.useRealTimers();
         });
 
-        it('should handle multiple concurrent pings correctly', async () => {
-            const mockPerformanceNow = jest.spyOn(performance, 'now');
-            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
-            
+        it("should handle multiple concurrent pings correctly", async () => {
+            const mockPerformanceNow = jest.spyOn(performance, "now");
+            const sendSpy = jest.spyOn(mocks.mockSocket, "send");
+
             // Mock timing in order: ping1 start, ping2 start, ping1 response, ping2 response
             let callCount = 0;
             mockPerformanceNow.mockImplementation(() => {
                 switch (callCount++) {
-                    case 0: return 1000; // ping1 start
-                    case 1: return 2000; // ping2 start  
-                    case 2: return 1030; // ping1 response (30ms RTT)
-                    case 3: return 2080; // ping2 response (80ms RTT)
-                    default: return Date.now();
+                    case 0:
+                        return 1000; // ping1 start
+                    case 1:
+                        return 2000; // ping2 start
+                    case 2:
+                        return 1030; // ping1 response (30ms RTT)
+                    case 3:
+                        return 2080; // ping2 response (80ms RTT)
+                    default:
+                        return Date.now();
                 }
             });
-            
+
             // Start multiple pings
             const ping1Promise = connection.ping();
             const ping2Promise = connection.ping();
-            
+
             // Get the sent ping IDs
             const ping1Message = JSON.parse(sendSpy.mock.calls[0][0]);
             const ping2Message = JSON.parse(sendSpy.mock.calls[1][0]);
-            
+
             // Verify different ping IDs
             expect(ping1Message.timestamp).toBe(1); // First ping gets ID 1
             expect(ping2Message.timestamp).toBe(2); // Second ping gets ID 2
-            
+
             // Respond to ping1 first
             const pong1Message = {
                 action: 13,
-                timestamp: ping1Message.timestamp // Echo back ping1 ID
+                timestamp: ping1Message.timestamp, // Echo back ping1 ID
             };
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pong1Message) } as MessageEvent);
-            
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(pong1Message),
+            } as MessageEvent);
+
             // Respond to ping2 second
             const pong2Message = {
                 action: 13,
-                timestamp: ping2Message.timestamp // Echo back ping2 ID
+                timestamp: ping2Message.timestamp, // Echo back ping2 ID
             };
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pong2Message) } as MessageEvent);
-            
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(pong2Message),
+            } as MessageEvent);
+
             // Verify correct RTTs
-            const [rtt1, rtt2] = await Promise.all([ping1Promise, ping2Promise]);
+            const [rtt1, rtt2] = await Promise.all([
+                ping1Promise,
+                ping2Promise,
+            ]);
             expect(rtt1).toBe(30);
             expect(rtt2).toBe(80);
-            
+
             mockPerformanceNow.mockRestore();
             sendSpy.mockRestore();
         });
 
-        it('should clean up pending pings on connection close', async () => {
+        it("should clean up pending pings on connection close", async () => {
             const pingPromise = connection.ping();
-            
+
             // Simulate connection close
             connection.disconnect();
-            
-            await expect(pingPromise).rejects.toThrow('Connection closed');
+
+            await expect(pingPromise).rejects.toThrow("Connection closed");
         });
 
-        it('should clean up pending pings on connection reset', async () => {
+        it("should clean up pending pings on connection reset", async () => {
             const pingPromise = connection.ping();
-            
+
             // Simulate connection reset
             connection.reset();
-            
-            await expect(pingPromise).rejects.toThrow('Connection reset');
+
+            await expect(pingPromise).rejects.toThrow("Connection reset");
         });
 
-        it('should ignore pong messages without ping ID', async () => {
-            const sendSpy = jest.spyOn(mocks.mockSocket, 'send');
-            
+        it("should ignore pong messages without ping ID", async () => {
+            const sendSpy = jest.spyOn(mocks.mockSocket, "send");
+
             const pingPromise = connection.ping();
-            
+
             // Send pong without ping ID
             const pongWithoutId = {
-                action: 13
+                action: 13,
                 // missing timestamp (used as ping ID)
             };
-            mocks.mockSocket.onmessage?.({ data: JSON.stringify(pongWithoutId) } as MessageEvent);
-            
+            mocks.mockSocket.onmessage?.({
+                data: JSON.stringify(pongWithoutId),
+            } as MessageEvent);
+
             // Verify ping was sent but promise is still pending
             expect(sendSpy).toHaveBeenCalled();
-            
+
             // Clean up
             connection.disconnect();
-            await expect(pingPromise).rejects.toThrow('Connection closed');
-            
+            await expect(pingPromise).rejects.toThrow("Connection closed");
+
             sendSpy.mockRestore();
         });
     });
 
-    describe('Authentication Integration', () => {
-        it('should handle token expiration', async () => {
+    describe("Authentication Integration", () => {
+        it("should handle token expiration", async () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
-            
+
             // Get the token expired handler
-            const tokenExpiredHandler = mocks.authManager.on.mock.calls
-                .find(call => call[0] === AuthEvents.TOKEN_EXPIRED)?.[1];
-            
+            const tokenExpiredHandler = mocks.authManager.on.mock.calls.find(
+                (call) => call[0] === AuthEvents.TOKEN_EXPIRED
+            )?.[1];
+
             expect(tokenExpiredHandler).toBeDefined();
 
             // Simulate token expiration
-            const connectSpy = jest.spyOn(connection, 'connect');
+            const connectSpy = jest.spyOn(connection, "connect");
             await tokenExpiredHandler?.();
 
             expect(connectSpy).toHaveBeenCalled();
         });
 
-        it('should handle authentication errors', async () => {
+        it("should handle authentication errors", async () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
             const events: any[] = [];
-            connection.on(ConnectionEvents.FAILED, (event) => events.push(event));
-            
+            connection.on(ConnectionEvents.FAILED, (event) =>
+                events.push(event)
+            );
+
             // Get the auth error handler
-            const authErrorHandler = mocks.authManager.on.mock.calls
-                .find(call => call[0] === AuthEvents.AUTH_ERROR)?.[1];
-            
+            const authErrorHandler = mocks.authManager.on.mock.calls.find(
+                (call) => call[0] === AuthEvents.AUTH_ERROR
+            )?.[1];
+
             expect(authErrorHandler).toBeDefined();
 
             // Simulate auth error - the handler expects just the Error object
-            const authError = new Error('Auth failed');
+            const authError = new Error("Auth failed");
             await authErrorHandler?.(authError);
 
             expect(events).toHaveLength(1);
-            expect(events[0].error.message).toBe('Auth failed');
-            expect(events[0].context).toBe('authentication');
+            expect(events[0].error.message).toBe("Auth failed");
+            expect(events[0].context).toBe("authentication");
         });
     });
 
-    describe('Reconnection Logic', () => {
-        it('should have reconnection configuration available', () => {
+    describe("Reconnection Logic", () => {
+        it("should have reconnection configuration available", () => {
             const mocks = createTestMocks({
                 autoReconnect: true,
                 maxReconnectAttempts: 5,
-                initialReconnectDelayMs: 1000
+                initialReconnectDelayMs: 1000,
             });
             const connection = createConnection(mocks);
 
             // Verify reconnection is enabled
-            expect(mocks.optionManager.getOption('autoReconnect')).toBe(true);
-            expect(mocks.optionManager.getOption('maxReconnectAttempts')).toBe(5);
-            expect(mocks.optionManager.getOption('initialReconnectDelayMs')).toBe(1000);
+            expect(mocks.optionManager.getOption("autoReconnect")).toBe(true);
+            expect(mocks.optionManager.getOption("maxReconnectAttempts")).toBe(
+                5
+            );
+            expect(
+                mocks.optionManager.getOption("initialReconnectDelayMs")
+            ).toBe(1000);
         });
 
-        it('should handle connection close events and check reconnection conditions', async () => {
+        it("should handle connection close events and check reconnection conditions", async () => {
             const mocks = createTestMocks({ autoReconnect: true });
             const connection = createConnection(mocks);
             await connection.connect();
 
             const closeEvents: any[] = [];
-            connection.on(ConnectionEvents.CLOSED, (event) => closeEvents.push(event));
+            connection.on(ConnectionEvents.CLOSED, (event) =>
+                closeEvents.push(event)
+            );
 
             // Simulate connection close
-            const closeEvent = { code: 1006, reason: 'Connection lost', wasClean: false } as CloseEvent;
+            const closeEvent = {
+                code: 1006,
+                reason: "Connection lost",
+                wasClean: false,
+            } as CloseEvent;
             mocks.mockSocket.onclose?.(closeEvent);
 
             // Should have handled the close event
             expect(closeEvents).toHaveLength(1);
             expect(closeEvents[0]).toMatchObject({
                 code: 1006,
-                reason: 'Connection lost',
-                wasClean: false
+                reason: "Connection lost",
+                wasClean: false,
             });
 
             // Should have called pendingSubscribeAllChannels
-            expect(mocks.channelManager.pendingSubscribeAllChannels).toHaveBeenCalled();
+            expect(
+                mocks.channelManager.pendingSubscribeAllChannels
+            ).toHaveBeenCalled();
         });
 
-        it('should not attempt reconnection when auto-reconnect is disabled', async () => {
+        it("should not attempt reconnection when auto-reconnect is disabled", async () => {
             const mocks = createTestMocks({ autoReconnect: false });
             const connection = createConnection(mocks);
             await connection.connect();
 
             const connectingEvents: any[] = [];
-            connection.on(ConnectionEvents.CONNECTING, (event) => connectingEvents.push(event));
+            connection.on(ConnectionEvents.CONNECTING, (event) =>
+                connectingEvents.push(event)
+            );
 
             // Simulate connection close
-            const closeEvent = { code: 1006, reason: 'Connection lost', wasClean: false } as CloseEvent;
+            const closeEvent = {
+                code: 1006,
+                reason: "Connection lost",
+                wasClean: false,
+            } as CloseEvent;
             mocks.mockSocket.onclose?.(closeEvent);
 
             // Should not emit CONNECTING events (no reconnection attempts)
             expect(connectingEvents).toHaveLength(0);
         });
 
-        it('should handle reconnection state correctly', async () => {
+        it("should handle reconnection state correctly", async () => {
             const mocks = createTestMocks({ autoReconnect: true });
             const connection = createConnection(mocks);
-            
+
             // Test initial state
             expect(connection.isConnected()).toBe(false);
-            
+
             // After connecting
             await connection.connect();
             mocks.wsClient.isConnected.mockReturnValue(true);
             expect(connection.isConnected()).toBe(true);
-            
+
             // After disconnecting
             mocks.wsClient.isConnected.mockReturnValue(false);
             expect(connection.isConnected()).toBe(false);
         });
     });
 
-    describe('Resource Cleanup', () => {
-        it('should clean up resources on reset', () => {
+    describe("Resource Cleanup", () => {
+        it("should clean up resources on reset", () => {
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
 
@@ -642,22 +734,22 @@ describe('Connection', () => {
             expect(mocks.wsClient.reset).toHaveBeenCalled();
         });
 
-        it('should clean up timers on disconnect', async () => {
+        it("should clean up timers on disconnect", async () => {
             jest.useFakeTimers();
             const mocks = createTestMocks();
             const connection = createConnection(mocks);
-            
+
             await connection.connect();
             mocks.mockSocket.onopen?.(); // Set up ping handler
-            
+
             // Simulate a ping to create timeout
             mocks.mockSocket.onping?.();
-            
+
             // Should have timers running
             expect(jest.getTimerCount()).toBeGreaterThan(0);
 
             connection.disconnect();
-            
+
             // Timers should be cleaned up
             expect(jest.getTimerCount()).toBe(0);
             jest.useRealTimers();

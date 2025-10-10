@@ -74,7 +74,7 @@ export class SocketChannel extends BaseChannel {
                 timestamp,
                 channel,
                 // Individual message payload fields
-                clientId: messagePayload.clientId,
+                alias: messagePayload.alias,
                 event: messagePayload.event,
                 data: messagePayload.data,
             })
@@ -128,7 +128,7 @@ export class SocketChannel extends BaseChannel {
     public async publish(
         data: any,
         event?: string,
-        clientId?: string
+        alias?: string
     ): Promise<void> {
         if (!this.wsClient.isConnected()) {
             throw new Error("Cannot publish: WebSocket is not connected");
@@ -138,7 +138,7 @@ export class SocketChannel extends BaseChannel {
             const messagePayload: DataMessagePayload = {
                 data,
                 event,
-                clientId,
+                alias,
             };
 
             const publishMessage: OutgoingDataMessage = {

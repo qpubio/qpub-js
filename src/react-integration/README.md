@@ -48,9 +48,7 @@ function ChatRoom() {
 
     return (
         <div>
-            <div>
-                Status: {ready ? "Ready & Subscribed" : "Not ready"}
-            </div>
+            <div>Status: {ready ? "Ready & Subscribed" : "Not ready"}</div>
 
             <div className="messages">
                 {messages.map((msg, index) => (
@@ -106,10 +104,10 @@ import { useAuth, useConnection } from "qpub/react";
 
 function AuthenticatedChat() {
     const { isAuthenticated, authenticate, error } = useAuth();
-    const { 
-        status: connectionStatus, 
-        connectionId, 
-        connectionDetails 
+    const {
+        status: connectionStatus,
+        connectionId,
+        connectionDetails,
     } = useConnection();
 
     if (!isAuthenticated) {
@@ -129,6 +127,7 @@ function AuthenticatedChat() {
                     <div>Connection ID: {connectionId}</div>
                     {connectionDetails && (
                         <>
+                            <div>Alias: {connectionDetails.alias}</div>
                             <div>Client ID: {connectionDetails.client_id}</div>
                             <div>Server ID: {connectionDetails.server_id}</div>
                         </>
@@ -214,7 +213,7 @@ const {
     subscribe, // (callback: (message: Message) => void) => void
     unsubscribe, // () => void
     resubscribe, // () => Promise<void>
-    publish, // (data: any, event?: string, clientId?: string) => Promise<void>
+    publish, // (data: any, event?: string, alias?: string) => Promise<void>
     isSubscribed, // () => boolean
     isPendingSubscribe, // () => boolean
     setPendingSubscribe, // (pending: boolean) => void
@@ -257,8 +256,8 @@ const {
     // State
     status, // 'initialized' | 'connecting' | 'opened' | 'connected' | 'disconnected' | 'closing' | 'closed' | 'failed'
     connectionId, // string | null - Unique connection identifier
-    connectionDetails, // ConnectionDetails | null - { client_id: string, server_id: string }
-    
+    connectionDetails, // ConnectionDetails | null - { alias: string, client_id: string, server_id: string }
+
     // Core methods
     connect, // () => Promise<void>
     disconnect, // () => void
@@ -346,20 +345,24 @@ const { ready, publish } = useChannel("chat", {
     onMessage: (message: Message) => {
         // message is fully typed
         console.log(message.data);
-    }
+    },
 });
 
 // Connection details are also fully typed
 const { connectionId, connectionDetails } = useConnection();
 if (connectionDetails) {
-    console.log(connectionDetails.client_id, connectionDetails.server_id);
+    console.log(
+        connectionDetails.alias,
+        connectionDetails.client_id,
+        connectionDetails.server_id
+    );
 }
 ```
 
 ## Notes
 
--   **Socket-only**: This React integration focuses on real-time Socket functionality
--   **Auto-Subscribe**: Use `onMessage` option for automatic subscription management when connection + channel are ready
--   **SDK-faithful**: All hooks expose SDK methods directly without abstractions
--   **Provider-based**: Use `SocketProvider` for consistent context
--   **TypeScript**: Full type safety and IntelliSense support
+- **Socket-only**: This React integration focuses on real-time Socket functionality
+- **Auto-Subscribe**: Use `onMessage` option for automatic subscription management when connection + channel are ready
+- **SDK-faithful**: All hooks expose SDK methods directly without abstractions
+- **Provider-based**: Use `SocketProvider` for consistent context
+- **TypeScript**: Full type safety and IntelliSense support

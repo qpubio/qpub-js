@@ -9,7 +9,7 @@ export interface JWTHeader {
 }
 
 export interface JWTPayload {
-    clientId?: string;
+    alias?: string;
     permissions?: Permissions;
     exp: number;
 }

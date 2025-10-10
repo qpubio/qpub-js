@@ -221,12 +221,12 @@ describe('SocketChannel', () => {
                 action: ActionType.MESSAGE,
                 messages: [
                     {
-                        clientId: 'client-1',
+                        alias: 'alias-1',
                         event: 'user.created',
                         data: { userId: 'user-123', name: 'John Doe' }
                     },
                     {
-                        clientId: 'client-2', 
+                        alias: 'alias-2', 
                         event: 'user.updated',
                         data: { userId: 'user-456', name: 'Jane Smith' }
                     }
@@ -241,7 +241,7 @@ describe('SocketChannel', () => {
                 action: ActionType.MESSAGE,
                 id: 'msg-123-0',
                 channel: 'test-channel',
-                clientId: 'client-1',
+                alias: 'alias-1',
                 event: 'user.created',
                 data: { userId: 'user-123', name: 'John Doe' }
             });
@@ -250,7 +250,7 @@ describe('SocketChannel', () => {
                 action: ActionType.MESSAGE,
                 id: 'msg-123-1', 
                 channel: 'test-channel',
-                clientId: 'client-2',
+                alias: 'alias-2',
                 event: 'user.updated',
                 data: { userId: 'user-456', name: 'Jane Smith' }
             });
@@ -282,7 +282,7 @@ describe('SocketChannel', () => {
                 action: ActionType.MESSAGE,
                 messages: [
                     {
-                        clientId: 'client-1',
+                        alias: 'alias-1',
                         event: 'user.created',
                         data: { userId: 'user-123', name: 'John Doe' }
                     }
@@ -297,7 +297,7 @@ describe('SocketChannel', () => {
                 action: ActionType.MESSAGE,
                 id: 'single-msg-123', // Should NOT get suffix for single message
                 channel: 'test-channel',
-                clientId: 'client-1',
+                alias: 'alias-1',
                 event: 'user.created',
                 data: { userId: 'user-123', name: 'John Doe' }
             });
@@ -385,9 +385,9 @@ describe('SocketChannel', () => {
 
             const data = { message: 'Hello, World!' };
             const event = 'greeting';
-            const clientId = 'client-123';
+            const alias = 'alias-123';
 
-            await channel.publish(data, event, clientId);
+            await channel.publish(data, event, alias);
 
             expect(mocks.wsClient.send).toHaveBeenCalledWith(
                 JSON.stringify({
@@ -396,7 +396,7 @@ describe('SocketChannel', () => {
                     messages: [{
                         data,
                         event,
-                        clientId
+                        alias
                     }]
                 })
             );
@@ -417,7 +417,7 @@ describe('SocketChannel', () => {
                     messages: [{
                         data,
                         event: undefined,
-                        clientId: undefined
+                        alias: undefined
                     }]
                 })
             );

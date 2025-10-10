@@ -1,7 +1,6 @@
 import { AuthManager } from '../../src/core/managers/auth-manager';
 import { IOptionManager, IHttpClient, ILogger } from '../../src/interfaces/services.interface';
 import { AuthResponse, TokenRequest } from '../../src/interfaces/token.interface';
-import { AuthEvents } from '../../src/types/event.type';
 
 describe('AuthManager', () => {
     // Track AuthManager instances to clean them up
@@ -11,7 +10,7 @@ describe('AuthManager', () => {
     function createValidJWT(): string {
         const header = { alg: "HS256", typ: "JWT", kid: "test-key-id" };
         const payload = { 
-            clientId: "test-client-id", 
+            alias: "test-alias", 
             exp: Math.floor(Date.now() / 1000) + 3600 // Expires in 1 hour
         };
         
