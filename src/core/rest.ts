@@ -48,4 +48,9 @@ export class Rest {
         // Clear container instances to ensure fresh state
         this.container.clearInstances();
     }
+
+    // Getter for instance ID
+    public getInstanceId(): string {
+        return this.instanceId;
+    }
 }

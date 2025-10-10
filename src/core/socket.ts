@@ -78,4 +78,9 @@ export class Socket {
     public getAbortSignal(): AbortSignal {
         return this.abortController.signal;
     }
+
+    // Getter for instance ID
+    public getInstanceId(): string {
+        return this.instanceId;
+    }
 }

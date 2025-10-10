@@ -3,6 +3,7 @@ import { Socket } from "../../core/socket";
 
 export interface SocketContextValue {
     socket: Socket;
+    instanceId: string;
 }
 
 export const SocketContext = React.createContext<SocketContextValue | null>(null);

@@ -149,7 +149,10 @@ export function SocketProvider({
 
     const contextValue: SocketContextValue | null = React.useMemo(() => {
         if (!socket) return null;
-        return { socket };
+        return { 
+            socket,
+            instanceId: socket.getInstanceId()
+        };
     }, [socket]);
 
     if (!contextValue) {
