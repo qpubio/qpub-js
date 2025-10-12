@@ -1,6 +1,6 @@
 import { ActionType } from "../../types/action.type";
 import { BaseChannel } from "./channel";
-import { IWebSocketClient } from "../../interfaces/services.interface";
+import { IWebSocketClient, ILogger } from "../../interfaces/services.interface";
 import { ChannelEvents } from "../../types/event.type";
 import {
     OutgoingChannelMessage,
@@ -12,24 +12,33 @@ import {
 
 export class SocketChannel extends BaseChannel {
     private wsClient: IWebSocketClient;
+    private logger: ILogger;
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
     private messageCallback?: (message: Message) => void;
     private messageHandler?: (event: MessageEvent) => void;
 
-    constructor(name: string, wsClient: IWebSocketClient) {
+    constructor(name: string, wsClient: IWebSocketClient, logger: ILogger) {
         super(name);
         this.wsClient = wsClient;
+        this.logger = logger;
+        this.logger.debug(`SocketChannel created for: ${name}`);
         this.setupMessageHandler();
     }
 
     private setupMessageHandler(): void {
         const socket = this.wsClient.getSocket();
         if (!socket) {
+            this.logger.warn(
+                `Cannot setup message handler - socket not available for channel: ${this.name}`
+            );
             return;
         }
 
         if (this.messageHandler) {
+            this.logger.trace(
+                `Removing existing message handler for channel: ${this.name}`
+            );
             socket.removeEventListener("message", this.messageHandler);
         }
 
@@ -37,10 +46,17 @@ export class SocketChannel extends BaseChannel {
             try {
                 const message = JSON.parse(event.data);
                 if (message.channel === this.name) {
+                    this.logger.trace(
+                        `Received message for channel ${this.name}:`,
+                        message
+                    );
                     this.handleMessage(message);
                 }
             } catch (error) {
-                console.error("Error parsing message:", error);
+                this.logger.error(
+                    `Error parsing message for channel ${this.name}:`,
+                    error
+                );
                 this.emit(ChannelEvents.FAILED, {
                     channelName: this.name,
                     error:
@@ -52,6 +68,9 @@ export class SocketChannel extends BaseChannel {
             }
         };
         socket.addEventListener("message", this.messageHandler);
+        this.logger.debug(
+            `Message handler setup complete for channel: ${this.name}`
+        );
     }
 
     /**
@@ -63,6 +82,10 @@ export class SocketChannel extends BaseChannel {
     ): Message[] {
         const { id, timestamp, channel, action, error, messages } =
             incomingMessage;
+
+        this.logger.trace(
+            `Transforming ${messages.length} message(s) for channel ${this.name}`
+        );
 
         return messages.map(
             (messagePayload, index): Message => ({
@@ -82,6 +105,10 @@ export class SocketChannel extends BaseChannel {
     }
 
     private handleMessage(message: any): void {
+        this.logger.debug(
+            `Handling message action ${message.action} for channel: ${this.name}`
+        );
+
         switch (message.action) {
             case ActionType.MESSAGE:
                 if (this.isSubscribed()) {
@@ -89,16 +116,26 @@ export class SocketChannel extends BaseChannel {
                     const consumerMessages =
                         this.transformToConsumerMessages(incomingDataMessage);
 
+                    this.logger.debug(
+                        `Dispatching ${consumerMessages.length} message(s) to callback for channel: ${this.name}`
+                    );
                     // Call the callback for each individual message
                     consumerMessages.forEach((consumerMessage) => {
                         this.messageCallback?.(consumerMessage);
                     });
+                } else {
+                    this.logger.warn(
+                        `Received message for channel ${this.name} but not subscribed - ignoring`
+                    );
                 }
                 break;
 
             case ActionType.SUBSCRIBED:
                 this.subscribed = true;
                 this.pendingSubscribe = false;
+                this.logger.info(
+                    `Channel ${this.name} subscribed successfully (subscriptionId: ${message.subscriptionId})`
+                );
                 this.emit(ChannelEvents.SUBSCRIBED, {
                     channelName: this.name,
                     subscriptionId: message.subscriptionId || "",
@@ -109,6 +146,9 @@ export class SocketChannel extends BaseChannel {
                 this.subscribed = false;
                 this.pendingSubscribe = false;
                 this.messageCallback = undefined;
+                this.logger.info(
+                    `Channel ${this.name} unsubscribed (subscriptionId: ${message.subscriptionId})`
+                );
                 this.emit(ChannelEvents.UNSUBSCRIBED, {
                     channelName: this.name,
                     subscriptionId: message.subscriptionId,
@@ -116,12 +156,21 @@ export class SocketChannel extends BaseChannel {
                 break;
 
             case ActionType.ERROR:
+                this.logger.error(
+                    `Channel ${this.name} received error:`,
+                    message.error
+                );
                 this.emit(ChannelEvents.FAILED, {
                     channelName: this.name,
                     error: message.error || new Error("Unknown channel error"),
                     action: "channel_operation",
                 });
                 break;
+
+            default:
+                this.logger.warn(
+                    `Unknown action type ${message.action} received for channel: ${this.name}`
+                );
         }
     }
 
@@ -130,8 +179,19 @@ export class SocketChannel extends BaseChannel {
         event?: string,
         alias?: string
     ): Promise<void> {
+        this.logger.debug(
+            `Publishing to channel ${this.name}${event ? ` (event: ${event})` : ""}${alias ? ` (alias: ${alias})` : ""}`
+        );
+
         if (!this.wsClient.isConnected()) {
-            throw new Error("Cannot publish: WebSocket is not connected");
+            const error = new Error(
+                "Cannot publish: WebSocket is not connected"
+            );
+            this.logger.error(
+                `Publish failed for channel ${this.name}:`,
+                error
+            );
+            throw error;
         }
 
         try {
@@ -147,8 +207,17 @@ export class SocketChannel extends BaseChannel {
                 messages: [messagePayload],
             };
 
+            this.logger.trace(
+                `Sending publish message for channel ${this.name}:`,
+                publishMessage
+            );
             this.wsClient.send(JSON.stringify(publishMessage));
+            this.logger.info(`Published message to channel: ${this.name}`);
         } catch (error) {
+            this.logger.error(
+                `Error publishing to channel ${this.name}:`,
+                error
+            );
             this.emit(ChannelEvents.FAILED, {
                 channelName: this.name,
                 error:
@@ -160,19 +229,34 @@ export class SocketChannel extends BaseChannel {
     }
 
     public subscribe(callback: (message: Message) => void): void {
+        this.logger.debug(
+            `Subscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, pending: ${this.pendingSubscribe})`
+        );
+
         if (!this.wsClient.isConnected()) {
             this.pendingSubscribe = true;
-            throw new Error("Cannot subscribe: WebSocket is not connected");
+            const error = new Error(
+                "Cannot subscribe: WebSocket is not connected"
+            );
+            this.logger.error(
+                `Subscribe failed for channel ${this.name}:`,
+                error
+            );
+            throw error;
         }
 
         if (this.isSubscribed() && !this.pendingSubscribe) {
             // Channel is already subscribed, just update the callback
+            this.logger.info(
+                `Channel ${this.name} already subscribed - updating callback`
+            );
             this.messageCallback = callback;
             // Ensure message handler is set up (in case it wasn't during construction)
             this.setupMessageHandler();
             return;
         }
 
+        this.logger.info(`Subscribing to channel: ${this.name}`);
         this.emit(ChannelEvents.SUBSCRIBING, {
             channelName: this.name,
         });
@@ -186,22 +270,38 @@ export class SocketChannel extends BaseChannel {
             action: ActionType.SUBSCRIBE,
             channel: this.name,
         };
+        this.logger.trace(
+            `Sending subscribe message for channel ${this.name}:`,
+            actionMessage
+        );
         this.wsClient.send(JSON.stringify(actionMessage));
     }
 
     public async resubscribe(): Promise<void> {
+        this.logger.debug(
+            `Resubscribe requested for channel ${this.name} (has callback: ${!!this.messageCallback})`
+        );
+
         // Only resubscribe if we have a callback (someone was subscribed)
         if (!this.messageCallback) {
+            this.logger.debug(
+                `Skipping resubscribe for channel ${this.name} - no callback registered`
+            );
             return;
         }
 
         try {
+            this.logger.info(`Resubscribing to channel: ${this.name}`);
             // Ensure message handler is set up before resubscribing
             this.setupMessageHandler();
             // Store the current callback before subscribing
             const existingCallback = this.messageCallback;
             this.subscribe(existingCallback);
         } catch (error) {
+            this.logger.error(
+                `Resubscribe failed for channel ${this.name}:`,
+                error
+            );
             this.emit(ChannelEvents.FAILED, {
                 channelName: this.name,
                 error:
@@ -213,12 +313,22 @@ export class SocketChannel extends BaseChannel {
     }
 
     public unsubscribe(): void {
+        this.logger.debug(
+            `Unsubscribe requested for channel ${this.name} (subscribed: ${this.subscribed})`
+        );
+
         if (!this.isSubscribed()) {
+            this.logger.debug(
+                `Channel ${this.name} not subscribed - skipping unsubscribe`
+            );
             return;
         }
 
         // If WebSocket is not connected, just clean up local state
         if (!this.wsClient.isConnected()) {
+            this.logger.warn(
+                `WebSocket not connected - cleaning up local state for channel: ${this.name}`
+            );
             this.subscribed = false;
             this.messageCallback = undefined;
             this.emit(ChannelEvents.UNSUBSCRIBED, {
@@ -227,6 +337,7 @@ export class SocketChannel extends BaseChannel {
             return;
         }
 
+        this.logger.info(`Unsubscribing from channel: ${this.name}`);
         this.emit(ChannelEvents.UNSUBSCRIBING, {
             channelName: this.name,
         });
@@ -235,6 +346,10 @@ export class SocketChannel extends BaseChannel {
             action: ActionType.UNSUBSCRIBE,
             channel: this.name,
         };
+        this.logger.trace(
+            `Sending unsubscribe message for channel ${this.name}:`,
+            actionMessage
+        );
         this.wsClient.send(JSON.stringify(actionMessage));
     }
 
@@ -247,12 +362,20 @@ export class SocketChannel extends BaseChannel {
     }
 
     public setPendingSubscribe(pending: boolean): void {
+        this.logger.debug(
+            `Setting pendingSubscribe to ${pending} for channel: ${this.name}`
+        );
         this.pendingSubscribe = pending;
     }
 
     public reset(): void {
+        this.logger.info(`Resetting channel: ${this.name}`);
+
         const socket = this.wsClient.getSocket();
         if (socket && this.messageHandler) {
+            this.logger.debug(
+                `Removing message handler for channel: ${this.name}`
+            );
             socket.removeEventListener("message", this.messageHandler);
             this.messageHandler = undefined;
         }
@@ -261,10 +384,13 @@ export class SocketChannel extends BaseChannel {
         // If disconnected, the server will handle cleanup automatically
         if (this.isSubscribed() && this.wsClient.isConnected()) {
             try {
+                this.logger.debug(
+                    `Unsubscribing channel ${this.name} during reset`
+                );
                 this.unsubscribe();
             } catch (error) {
                 // Log error but don't throw to prevent blocking reset
-                console.warn(
+                this.logger.warn(
                     `Failed to unsubscribe from channel ${this.name} during reset:`,
                     error
                 );
@@ -272,9 +398,11 @@ export class SocketChannel extends BaseChannel {
         }
 
         // Reset local state regardless of unsubscribe success
+        this.logger.debug(`Clearing local state for channel: ${this.name}`);
         this.subscribed = false;
         this.messageCallback = undefined;
         this.pendingSubscribe = false;
         this.removeAllListeners();
+        this.logger.info(`Channel ${this.name} reset complete`);
     }
 }

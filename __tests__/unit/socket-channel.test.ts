@@ -1,7 +1,7 @@
 import { SocketChannel } from '../../src/core/channels/socket-channel';
 import { ChannelEvents } from '../../src/types/event.type';
 import { ActionType } from '../../src/types/action.type';
-import { IWebSocketClient } from '../../src/interfaces/services.interface';
+import { IWebSocketClient, ILogger } from '../../src/interfaces/services.interface';
 import { Message, IncomingDataMessage } from '../../src/interfaces/message.interface';
 
 describe('SocketChannel', () => {
@@ -31,13 +31,21 @@ describe('SocketChannel', () => {
             reset: jest.fn()
         } as jest.Mocked<IWebSocketClient>;
 
-        return { wsClient, mockSocket };
+        const logger = {
+            error: jest.fn(),
+            warn: jest.fn(),
+            info: jest.fn(),
+            debug: jest.fn(),
+            trace: jest.fn()
+        } as jest.Mocked<ILogger>;
+
+        return { wsClient, mockSocket, logger };
     }
 
     // Helper to create SocketChannel and track for cleanup
     function createChannel(name: string, mocks: ReturnType<typeof createTestMocks>): SocketChannel {
-        const { wsClient } = mocks;
-        const channel = new SocketChannel(name, wsClient);
+        const { wsClient, logger } = mocks;
+        const channel = new SocketChannel(name, wsClient, logger);
         channelInstances.push(channel);
         return channel;
     }
@@ -332,9 +340,6 @@ describe('SocketChannel', () => {
             const errorEvents: any[] = [];
             channel.on(ChannelEvents.FAILED, (event) => errorEvents.push(event));
 
-            // Suppress console.error for this test since we're intentionally testing error handling
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             const messageHandler = mocks.mockSocket.addEventListener.mock.calls
                 .find(call => call[0] === 'message')?.[1];
 
@@ -347,9 +352,11 @@ describe('SocketChannel', () => {
                 action: 'message_parsing'
             });
 
-            // Verify console.error was called and restore it
-            expect(consoleErrorSpy).toHaveBeenCalledWith('Error parsing message:', expect.any(SyntaxError));
-            consoleErrorSpy.mockRestore();
+            // Verify logger.error was called with the error
+            expect(mocks.logger.error).toHaveBeenCalledWith(
+                expect.stringContaining('Error parsing message for channel'),
+                expect.any(SyntaxError)
+            );
         });
 
         it('should handle ERROR action messages', () => {

@@ -14,7 +14,9 @@ import {
     RestPublishRequest,
 } from "../../interfaces/message.interface";
 
-export class SocketChannelManager implements ChannelManager, ISocketChannelManager {
+export class SocketChannelManager
+    implements ChannelManager, ISocketChannelManager
+{
     private channels: Map<string, SocketChannel> = new Map();
     private wsClient: IWebSocketClient;
     private logger: ILogger;
@@ -24,14 +26,12 @@ export class SocketChannelManager implements ChannelManager, ISocketChannelManag
         this.logger = logger;
     }
 
-
-
     public get(channelName: string): SocketChannel {
         if (!this.channels.has(channelName)) {
             this.logger.debug(`Creating new socket channel: ${channelName}`);
             this.channels.set(
                 channelName,
-                new SocketChannel(channelName, this.wsClient)
+                new SocketChannel(channelName, this.wsClient, this.logger)
             );
         }
 
@@ -110,8 +110,6 @@ export class RestChannelManager implements ChannelManager {
         this.logger = logger;
     }
 
-
-
     public get(channelName: string): RestChannel {
         if (!this.channels.has(channelName)) {
             this.logger.debug(`Creating new REST channel: ${channelName}`);
@@ -121,7 +119,8 @@ export class RestChannelManager implements ChannelManager {
                     channelName,
                     this.httpClient,
                     this.authManager,
-                    this.optionManager
+                    this.optionManager,
+                    this.logger
                 )
             );
         }
