@@ -16,32 +16,15 @@ export class SocketChannel extends BaseChannel {
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
     private messageCallback?: (message: Message) => void;
-    private messageHandler?: (event: MessageEvent) => void;
+    private messageHandler: (event: MessageEvent) => void;
 
     constructor(name: string, wsClient: IWebSocketClient, logger: ILogger) {
         super(name);
         this.wsClient = wsClient;
         this.logger = logger;
         this.logger.debug(`SocketChannel created for: ${name}`);
-        this.setupMessageHandler();
-    }
-
-    private setupMessageHandler(): void {
-        const socket = this.wsClient.getSocket();
-        if (!socket) {
-            this.logger.warn(
-                `Cannot setup message handler - socket not available for channel: ${this.name}`
-            );
-            return;
-        }
-
-        if (this.messageHandler) {
-            this.logger.trace(
-                `Removing existing message handler for channel: ${this.name}`
-            );
-            socket.removeEventListener("message", this.messageHandler);
-        }
-
+        
+        // Create the message handler function ONCE - never recreate it
         this.messageHandler = (event) => {
             try {
                 const message = JSON.parse(event.data);
@@ -67,6 +50,23 @@ export class SocketChannel extends BaseChannel {
                 });
             }
         };
+        
+        this.setupMessageHandler();
+    }
+
+    private setupMessageHandler(): void {
+        const socket = this.wsClient.getSocket();
+        if (!socket) {
+            this.logger.warn(
+                `Cannot setup message handler - socket not available for channel: ${this.name}`
+            );
+            return;
+        }
+
+        // Remove if already attached (idempotent)
+        socket.removeEventListener("message", this.messageHandler);
+        
+        // Attach the handler
         socket.addEventListener("message", this.messageHandler);
         this.logger.debug(
             `Message handler setup complete for channel: ${this.name}`
@@ -251,10 +251,12 @@ export class SocketChannel extends BaseChannel {
                 `Channel ${this.name} already subscribed - updating callback`
             );
             this.messageCallback = callback;
-            // Ensure message handler is set up (in case it wasn't during construction)
-            this.setupMessageHandler();
             return;
         }
+
+        // Ensure handler is attached to WebSocket (idempotent operation)
+        // This is needed because constructor might run before WebSocket is ready
+        this.setupMessageHandler();
 
         this.logger.info(`Subscribing to channel: ${this.name}`);
         this.emit(ChannelEvents.SUBSCRIBING, {
@@ -262,9 +264,6 @@ export class SocketChannel extends BaseChannel {
         });
         this.messageCallback = callback;
         this.pendingSubscribe = false;
-
-        // Ensure message handler is properly set up (in case it wasn't during construction)
-        this.setupMessageHandler();
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.SUBSCRIBE,
@@ -292,8 +291,6 @@ export class SocketChannel extends BaseChannel {
 
         try {
             this.logger.info(`Resubscribing to channel: ${this.name}`);
-            // Ensure message handler is set up before resubscribing
-            this.setupMessageHandler();
             // Store the current callback before subscribing
             const existingCallback = this.messageCallback;
             this.subscribe(existingCallback);
@@ -371,13 +368,13 @@ export class SocketChannel extends BaseChannel {
     public reset(): void {
         this.logger.info(`Resetting channel: ${this.name}`);
 
+        // Remove the handler from the WebSocket, but don't destroy the function
         const socket = this.wsClient.getSocket();
-        if (socket && this.messageHandler) {
+        if (socket) {
             this.logger.debug(
                 `Removing message handler for channel: ${this.name}`
             );
             socket.removeEventListener("message", this.messageHandler);
-            this.messageHandler = undefined;
         }
 
         // Only attempt to unsubscribe if WebSocket is still connected

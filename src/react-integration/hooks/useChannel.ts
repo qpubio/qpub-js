@@ -49,6 +49,7 @@ export function useChannel(channelName: string): UseChannelReturn {
     React.useEffect(() => {
         if (!socket) return;
 
+        // Get channel from manager (increments ref count in core)
         const socketChannel = socket.channels.get(channelName);
         setChannel(socketChannel);
 
@@ -63,6 +64,7 @@ export function useChannel(channelName: string): UseChannelReturn {
         socketChannel.on(ChannelEvents.FAILED, handleChannelFailed);
 
         return () => {
+            // Remove event listeners
             socketChannel.off(
                 ChannelEvents.SUBSCRIBING,
                 handleChannelSubscribing
@@ -76,6 +78,9 @@ export function useChannel(channelName: string): UseChannelReturn {
                 handleChannelUnsubscribed
             );
             socketChannel.off(ChannelEvents.FAILED, handleChannelFailed);
+            
+            // Release channel reference (core handles ref counting and cleanup)
+            socket.channels.release(channelName);
         };
     }, [socket, channelName]);
 

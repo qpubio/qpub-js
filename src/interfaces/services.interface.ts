@@ -193,6 +193,12 @@ export interface IChannelManager {
  */
 export interface ISocketChannelManager extends IChannelManager {
     /**
+     * Release a reference to a channel. When reference count reaches 0,
+     * the channel is automatically unsubscribed and removed.
+     */
+    release(channelName: string): void;
+
+    /**
      * Resubscribe to all channels (after reconnection)
      */
     resubscribeAllChannels(): void;

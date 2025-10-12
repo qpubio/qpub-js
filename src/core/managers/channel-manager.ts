@@ -18,6 +18,7 @@ export class SocketChannelManager
     implements ChannelManager, ISocketChannelManager
 {
     private channels: Map<string, SocketChannel> = new Map();
+    private channelRefCounts: Map<string, number> = new Map();
     private wsClient: IWebSocketClient;
     private logger: ILogger;
 
@@ -35,7 +36,60 @@ export class SocketChannelManager
             );
         }
 
+        // Increment reference count
+        const currentCount = this.channelRefCounts.get(channelName) || 0;
+        this.channelRefCounts.set(channelName, currentCount + 1);
+        this.logger.debug(
+            `Channel ${channelName} reference count: ${currentCount + 1}`
+        );
+
         return this.channels.get(channelName)!;
+    }
+
+    /**
+     * Release a reference to a channel. When the reference count reaches 0,
+     * the channel is automatically unsubscribed and removed from the manager.
+     *
+     * @param channelName - The name of the channel to release
+     */
+    public release(channelName: string): void {
+        const count = this.channelRefCounts.get(channelName) || 0;
+
+        if (count <= 0) {
+            this.logger.warn(
+                `Attempted to release channel ${channelName} with no active references`
+            );
+            return;
+        }
+
+        if (count === 1) {
+            // Last reference - clean up the channel completely
+            this.logger.debug(
+                `Last reference to channel ${channelName} released - cleaning up`
+            );
+            const channel = this.channels.get(channelName);
+            if (channel) {
+                // Call reset() which properly cleans up WebSocket handlers and unsubscribes
+                try {
+                    channel.reset();
+                } catch (error) {
+                    this.logger.warn(
+                        `Failed to reset channel ${channelName} during cleanup:`,
+                        error
+                    );
+                }
+                // Remove the channel from the manager
+                this.channels.delete(channelName);
+                this.logger.debug(`Channel ${channelName} removed from manager`);
+            }
+            this.channelRefCounts.delete(channelName);
+        } else {
+            // Still have other references
+            this.channelRefCounts.set(channelName, count - 1);
+            this.logger.debug(
+                `Channel ${channelName} reference count: ${count - 1}`
+            );
+        }
     }
 
     public getAllChannels(): SocketChannel[] {
@@ -88,6 +142,7 @@ export class SocketChannelManager
         // Reset all channels
         this.channels.forEach((channel) => channel.reset());
         this.channels.clear();
+        this.channelRefCounts.clear();
     }
 }
 
