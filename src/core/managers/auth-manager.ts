@@ -1,6 +1,11 @@
 import { EventEmitter } from "../shared/event-emitter";
 import { AuthEventPayloads } from "../../types/internal-events";
-import { IOptionManager, IHttpClient, ILogger, IAuthManager } from "../../interfaces/services.interface";
+import {
+    IOptionManager,
+    IHttpClient,
+    ILogger,
+    IAuthManager,
+} from "../../interfaces/services.interface";
 import { JWT } from "../shared/jwt";
 import { JWTPayload } from "../../interfaces/jwt.interface";
 import {
@@ -12,7 +17,10 @@ import { Crypto } from "../shared/crypto";
 import { ApiKey } from "../shared/api-key";
 import { AuthEvents } from "../../types/event.type";
 
-export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAuthManager {
+export class AuthManager
+    extends EventEmitter<AuthEventPayloads>
+    implements IAuthManager
+{
     private optionManager: IOptionManager;
     private httpClient: IHttpClient;
     private currentToken: string | null = null;
@@ -21,25 +29,35 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     private _isResetting: boolean = false; // Add reset flag
     private abortController: AbortController; // Add abort controller
 
-    constructor(optionManager: IOptionManager, httpClient: IHttpClient, logger: ILogger) {
+    constructor(
+        optionManager: IOptionManager,
+        httpClient: IHttpClient,
+        logger: ILogger
+    ) {
         super();
         this.optionManager = optionManager;
         this.httpClient = httpClient;
         this.logger = logger;
-        this.abortController = new AbortController(); // Initialize abort controller
+        this.abortController = new AbortController();
+
+        this.logger.debug("AuthManager created");
 
         const tokenRequest = this.optionManager.getOption("tokenRequest");
         if (tokenRequest) {
-            this.logger.debug("Initial token request found, requesting token");
+            this.logger.info("Initial token request found - requesting token");
             this.requestToken(tokenRequest).catch((error) => {
-                this.emit(AuthEvents.TOKEN_ERROR, { 
-                    error: error instanceof Error ? error : new Error("Unknown error")
+                this.logger.error("Initial token request failed:", error);
+                this.emit(AuthEvents.TOKEN_ERROR, {
+                    error:
+                        error instanceof Error
+                            ? error
+                            : new Error("Unknown error"),
                 });
             });
+        } else {
+            this.logger.debug("No initial token request provided");
         }
     }
-
-
 
     /**
      * Unified error handler for auth manager
@@ -54,9 +72,14 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
         // Emit appropriate event based on context
         if (context.includes("token")) {
+            this.logger.debug("Emitting TOKEN_ERROR event");
             this.emit(AuthEvents.TOKEN_ERROR, { error: formattedError });
         } else if (context.includes("auth")) {
-            this.emit(AuthEvents.AUTH_ERROR, { error: formattedError, context });
+            this.logger.debug("Emitting AUTH_ERROR event");
+            this.emit(AuthEvents.AUTH_ERROR, {
+                error: formattedError,
+                context,
+            });
         }
 
         throw formattedError;
@@ -68,9 +91,13 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * @throws Error if no authentication credentials are provided
      */
     public async authenticate(): Promise<AuthResponse | null> {
+        this.logger.debug("Authenticate called");
+
         // Prevent authentication during reset
         if (this._isResetting) {
-            this.logger.debug("Authentication blocked - auth manager is resetting");
+            this.logger.warn(
+                "Authentication blocked - auth manager is resetting"
+            );
             return null;
         }
 
@@ -80,13 +107,21 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             this.optionManager.getOption("authenticateRetryIntervalMs") || 1000;
         const tokenRequest = this.optionManager.getOption("tokenRequest");
 
-        this.logger.info(`Starting authentication (retries: ${retries})`);
+        this.logger.info(
+            `Starting authentication (retries: ${retries}, interval: ${retryInterval}ms)`
+        );
 
         for (let attempt = 0; attempt <= retries; attempt++) {
             try {
+                this.logger.debug(
+                    `Authentication attempt ${attempt + 1}/${retries + 1}`
+                );
+
                 // Check if reset was called during authentication
                 if (this._isResetting || this.abortController.signal.aborted) {
-                    this.logger.debug("Authentication cancelled - auth manager was reset or aborted");
+                    this.logger.warn(
+                        "Authentication cancelled - auth manager was reset or aborted"
+                    );
                     return null;
                 }
 
@@ -99,29 +134,34 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
                 if (response?.tokenRequest) {
                     this.logger.debug(
-                        "Received token request in response, requesting token"
+                        "Received token request in response - requesting token"
                     );
                     return await this.requestToken(response.tokenRequest);
                 }
 
+                this.logger.info("Authentication successful");
                 return response;
             } catch (error) {
                 // Check if operation was aborted
                 if (this.abortController.signal.aborted) {
-                    this.logger.debug("Authentication cancelled due to abort");
+                    this.logger.warn("Authentication cancelled due to abort");
                     return null;
                 }
 
                 const isLastAttempt = attempt === retries;
                 this.logger.warn(
-                    `Authentication attempt ${attempt + 1} failed`
+                    `Authentication attempt ${attempt + 1}/${retries + 1} failed:`,
+                    error
                 );
 
                 if (isLastAttempt) {
+                    this.logger.error("All authentication attempts failed");
                     return this.handleError(error, "Authentication failed");
                 }
 
-                this.logger.debug(`Retrying in ${retryInterval}ms`);
+                this.logger.debug(
+                    `Retrying authentication in ${retryInterval}ms`
+                );
                 await new Promise((resolve) =>
                     setTimeout(resolve, retryInterval)
                 );
@@ -132,11 +172,20 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     }
 
     private async _authenticate(): Promise<AuthResponse | null> {
+        this.logger.debug("Internal authentication started");
+
         const authUrl = this.optionManager.getOption("authUrl");
         const apiKey = this.optionManager.getOption("apiKey");
         const authOptions = this.optionManager.getOption("authOptions");
 
+        this.logger.trace("Auth config:", {
+            hasAuthUrl: !!authUrl,
+            hasApiKey: !!apiKey,
+            hasAuthOptions: !!authOptions,
+        });
+
         if (!authUrl && !apiKey) {
+            this.logger.error("No authentication credentials provided");
             return this.handleError(
                 new Error("Either authUrl or apiKey must be provided"),
                 "Authentication failed"
@@ -144,8 +193,13 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
         }
 
         if (!authUrl) {
+            this.logger.debug(
+                "No authUrl provided - will use apiKey for authentication"
+            );
             return null; // Will use apiKey for authentication
         }
+
+        this.logger.debug(`Sending auth request to: ${authUrl}`);
 
         const response = await this.httpClient.post<AuthResponse>(
             authUrl,
@@ -155,16 +209,21 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             }
         );
 
+        this.logger.debug("Received auth response");
+
         if (response.token) {
+            this.logger.debug("Response contains token - decoding and setting");
             JWT.decode(response.token);
             this.setToken(response.token);
             return response;
         }
 
         if (response.tokenRequest) {
+            this.logger.debug("Response contains token request");
             return response;
         }
 
+        this.logger.error("Invalid auth response - no token or tokenRequest");
         return this.handleError(
             new Error("Invalid response: expected token or tokenRequest"),
             "Authentication failed"
@@ -175,33 +234,61 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * Check if auto authentication is enabled
      */
     public shouldAutoAuthenticate(): boolean {
-        return this.optionManager.getOption("autoAuthenticate") ?? true;
+        const autoAuth =
+            this.optionManager.getOption("autoAuthenticate") ?? true;
+        this.logger.trace(`shouldAutoAuthenticate: ${autoAuth}`);
+        return autoAuth;
     }
 
     private setToken(token: string): void {
         this.logger.debug("Setting new token");
         this.currentToken = token;
         const decoded = JWT.decode(token);
-        this.emit(AuthEvents.TOKEN_UPDATED, { 
-            token, 
-            expiresAt: decoded?.payload?.exp ? new Date(decoded.payload.exp * 1000) : undefined 
-        });
+
+        const expiresAt = decoded?.payload?.exp
+            ? new Date(decoded.payload.exp * 1000)
+            : undefined;
+
+        if (expiresAt) {
+            this.logger.info(
+                `Token set - expires at ${expiresAt.toISOString()}`
+            );
+        } else {
+            this.logger.info("Token set - no expiration");
+        }
+
+        this.logger.debug("Emitting TOKEN_UPDATED event");
+        this.emit(AuthEvents.TOKEN_UPDATED, { token, expiresAt });
         this.scheduleTokenRefresh(token);
     }
 
     public getToken(): string | null {
+        this.logger.trace("getToken called");
+
         if (this.currentToken && !JWT.isExpired(this.currentToken)) {
+            this.logger.trace("Returning valid token");
             return this.currentToken;
         }
+
         if (this.currentToken) {
-            this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date(), token: this.currentToken });
+            this.logger.warn("Current token has expired");
+            this.emit(AuthEvents.TOKEN_EXPIRED, {
+                expiredAt: new Date(),
+                token: this.currentToken,
+            });
             this.clearToken();
+        } else {
+            this.logger.trace("No token available");
         }
+
         return null;
     }
 
     private scheduleTokenRefresh(token: string): void {
+        this.logger.debug("Scheduling token refresh");
+
         if (this.refreshTimeout) {
+            this.logger.debug("Clearing existing refresh timeout");
             clearTimeout(this.refreshTimeout);
         }
 
@@ -211,21 +298,31 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             const delay = payload.exp * 1000 - Date.now() - buffer;
 
             if (delay > 0) {
-                this.logger.debug(`Scheduling token refresh in ${delay}ms`);
+                const refreshDate = new Date(Date.now() + delay);
+                this.logger.info(
+                    `Token refresh scheduled for ${refreshDate.toISOString()} (in ${Math.round(delay / 1000)}s)`
+                );
                 this.refreshTimeout = setTimeout(() => {
-                    this.logger.info("Token expired, clearing token");
-                    this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date() });
+                    this.logger.info(
+                        "Token refresh timer triggered - clearing token"
+                    );
+                    this.emit(AuthEvents.TOKEN_EXPIRED, {
+                        expiredAt: new Date(),
+                    });
                     this.clearToken();
                 }, delay);
             } else {
-                this.logger.warn("Token already expired or about to expire");
+                this.logger.warn(
+                    `Token already expired or about to expire (delay: ${delay}ms)`
+                );
                 this.emit(AuthEvents.TOKEN_EXPIRED, { expiredAt: new Date() });
                 this.clearToken();
             }
         } catch (error) {
             this.logger.error("Error scheduling token refresh:", error);
-            this.emit(AuthEvents.TOKEN_ERROR, { 
-                error: error instanceof Error ? error : new Error("Unknown error")
+            this.emit(AuthEvents.TOKEN_ERROR, {
+                error:
+                    error instanceof Error ? error : new Error("Unknown error"),
             });
             this.clearToken();
         }
@@ -235,32 +332,44 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
         this.logger.debug("Clearing token");
         this.currentToken = null;
         if (this.refreshTimeout) {
+            this.logger.debug("Clearing refresh timeout");
             clearTimeout(this.refreshTimeout);
+            this.refreshTimeout = undefined;
         }
+        this.logger.info("Token cleared");
     }
 
     public getAuthHeaders(): HeadersInit {
+        this.logger.trace("Getting auth headers");
+
         const apiKey = this.optionManager.getOption("apiKey");
         const token = this.getToken();
         const alias = this.optionManager.getOption("alias");
 
         if (token) {
+            this.logger.debug("Using Bearer token for auth headers");
             return {
                 Authorization: `Bearer ${token}`,
             };
         } else if (apiKey) {
+            this.logger.debug(
+                `Using Basic auth for auth headers${alias ? " with alias" : ""}`
+            );
             const headers: HeadersInit = {
                 Authorization: `Basic ${btoa(apiKey)}`,
             };
-            
+
             // Add alias header for basic auth if provided
             if (alias) {
                 headers["X-Alias"] = alias;
             }
-            
+
             return headers;
         }
 
+        this.logger.error(
+            "No authentication credentials available for headers"
+        );
         return this.handleError(
             new Error("No authentication credentials provided"),
             "No authentication credentials provided"
@@ -268,23 +377,32 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     }
 
     public getAuthQueryParams(): string {
+        this.logger.trace("Getting auth query params");
+
         const apiKey = this.optionManager.getOption("apiKey");
         const token = this.getToken();
         const alias = this.optionManager.getOption("alias");
 
         if (token) {
+            this.logger.debug("Using access_token for query params");
             return `access_token=${encodeURIComponent(token)}`;
         } else if (apiKey) {
+            this.logger.debug(
+                `Using api_key for query params${alias ? " with alias" : ""}`
+            );
             let params = `api_key=${encodeURIComponent(apiKey)}`;
-            
+
             // Add alias query param for basic auth if provided
             if (alias) {
                 params += `&alias=${encodeURIComponent(alias)}`;
             }
-            
+
             return params;
         }
 
+        this.logger.error(
+            "No authentication credentials available for query params"
+        );
         return this.handleError(
             new Error("No authentication credentials available"),
             "No authentication credentials available"
@@ -292,9 +410,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     }
 
     public getAuthenticateUrl(baseUrl: string): string {
+        this.logger.debug(`Building authenticate URL for: ${baseUrl}`);
         const authQueryParams = this.getAuthQueryParams();
         const separator = baseUrl.includes("?") ? "&" : "?";
-        return `${baseUrl}${separator}${authQueryParams}`;
+        const url = `${baseUrl}${separator}${authQueryParams}`;
+        this.logger.trace(`Authenticate URL built: ${url.substring(0, 50)}...`);
+        return url;
     }
 
     /**
@@ -307,9 +428,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * @throws Error if apiKey is not provided or signing fails
      */
     public async generateToken(options: TokenOptions = {}): Promise<string> {
+        this.logger.debug("Generating token", options);
+
         const apiKey = this.optionManager.getOption("apiKey");
 
         if (!apiKey) {
+            this.logger.error("Cannot generate token - no API key provided");
             return this.handleError(
                 new Error("API key is required"),
                 "Token generation failed"
@@ -318,22 +442,30 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
         try {
             const { apiKeyId, privateKey } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
+            const expiresIn = options.expiresIn || 3600;
             const payload: JWTPayload = {
-                exp:
-                    Math.floor(Date.now() / 1000) + (options.expiresIn || 3600),
+                exp: Math.floor(Date.now() / 1000) + expiresIn,
             };
 
             if (options.alias !== undefined) {
                 payload.alias = options.alias;
+                this.logger.debug(`Token alias: ${options.alias}`);
             }
 
             if (options.permissions !== undefined) {
                 payload.permissions = options.permissions;
+                this.logger.debug("Token permissions set");
             }
 
-            return await JWT.sign(payload, apiKeyId, privateKey);
+            this.logger.debug(`Signing token (expires in ${expiresIn}s)`);
+            const token = await JWT.sign(payload, apiKeyId, privateKey);
+
+            this.logger.info("Token generated successfully");
+            return token;
         } catch (error) {
+            this.logger.error("Token generation failed:", error);
             return this.handleError(error, "Token generation failed");
         }
     }
@@ -347,9 +479,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * @throws Error if apiKey is not provided or token request fails
      */
     public async issueToken(options: TokenOptions = {}): Promise<string> {
+        this.logger.debug("Issuing token from QPub server", options);
+
         const apiKey = this.optionManager.getOption("apiKey");
 
         if (!apiKey) {
+            this.logger.error("Cannot issue token - no API key provided");
             return this.handleError(
                 new Error("API key is required for issuing tokens"),
                 "Token issuance failed"
@@ -358,6 +493,7 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
         try {
             const { apiKeyId } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
             const host = this.optionManager.getOption("httpHost");
             const port = this.optionManager.getOption("httpPort");
@@ -366,25 +502,31 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
             const url = `${baseUrl}/key/${apiKeyId}/token/issue`;
 
+            this.logger.debug(`Issuing token from: ${url}`);
+
             const response = await this.httpClient.post<{ token: string }>(
-                url, // QPub token endpoint
-                options, // Token options
+                url,
+                options,
                 {
                     Authorization: `Basic ${btoa(apiKey)}`,
                 }
             );
 
             if (!response.token) {
+                this.logger.error("Invalid token response - no token field");
                 return this.handleError(
                     new Error("Invalid token response from QPub server"),
                     "Token issuance failed"
                 );
             }
 
+            this.logger.debug("Token received - decoding to validate");
             JWT.decode(response.token);
 
+            this.logger.info("Token issued successfully from QPub server");
             return response.token;
         } catch (error) {
+            this.logger.error("Token issuance failed:", error);
             return this.handleError(error, "Token issuance failed");
         }
     }
@@ -400,9 +542,14 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
     public async createTokenRequest(
         options: TokenOptions = {}
     ): Promise<TokenRequest> {
+        this.logger.debug("Creating token request", options);
+
         const apiKey = this.optionManager.getOption("apiKey");
 
         if (!apiKey) {
+            this.logger.error(
+                "Cannot create token request - no API key provided"
+            );
             return this.handleError(
                 new Error("API key is required for creating token requests"),
                 "Token request creation failed"
@@ -411,6 +558,7 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
 
         try {
             const { apiKeyId, privateKey } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
             const timestamp = Math.floor(Date.now() / 1000);
 
@@ -418,11 +566,14 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             let dataToSign = `${apiKeyId}.${timestamp}`;
             if (options.alias !== undefined) {
                 dataToSign += `.${options.alias}`;
+                this.logger.debug(`Token request alias: ${options.alias}`);
             }
             if (options.permissions !== undefined) {
                 dataToSign += `.${JSON.stringify(options.permissions)}`;
+                this.logger.debug("Token request permissions set");
             }
 
+            this.logger.debug("Signing token request data");
             const signature = await Crypto.hmacSign(dataToSign, privateKey);
 
             const request: TokenRequest = {
@@ -438,8 +589,10 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
                 request.permissions = options.permissions;
             }
 
+            this.logger.info("Token request created successfully");
             return request;
         } catch (error) {
+            this.logger.error("Token request creation failed:", error);
             return this.handleError(error, "Token request creation failed");
         }
     }
@@ -451,6 +604,12 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
      * @returns Promise<AuthResponse> QPub server's response containing the token
      */
     public async requestToken(request: TokenRequest): Promise<AuthResponse> {
+        this.logger.debug("Requesting token from QPub server", {
+            kid: request.kid,
+            hasAlias: !!request.alias,
+            hasPermissions: !!request.permissions,
+        });
+
         try {
             const host = this.optionManager.getOption("httpHost");
             const port = this.optionManager.getOption("httpPort");
@@ -458,6 +617,8 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             const protocol = isSecure ? "https" : "http";
             const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
             const url = `${baseUrl}/key/${request.kid}/token/request`;
+
+            this.logger.debug(`Sending token request to: ${url}`);
 
             const response = await this.httpClient.post<AuthResponse>(
                 url,
@@ -468,52 +629,69 @@ export class AuthManager extends EventEmitter<AuthEventPayloads> implements IAut
             );
 
             if (!response.token) {
+                this.logger.error("Invalid token response - no token field");
                 return this.handleError(
                     new Error("Invalid response: token not found"),
                     "Token request failed"
                 );
             }
 
+            this.logger.debug("Token received - decoding and setting");
             JWT.decode(response.token);
             this.setToken(response.token);
 
+            this.logger.info("Token request successful");
             return response;
         } catch (error) {
+            this.logger.error("Token request failed:", error);
             return this.handleError(error, "Token request failed");
         }
     }
 
     public isAuthenticated(): boolean {
-        return this.currentToken !== null;
+        const authenticated = this.currentToken !== null;
+        this.logger.trace(`isAuthenticated: ${authenticated}`);
+        return authenticated;
     }
 
     public getCurrentToken(): string | null {
+        this.logger.trace("getCurrentToken called");
         return this.currentToken;
     }
 
     public reset(): void {
         this.logger.info("Resetting auth manager");
-        
+
         // 1. Set reset flag to prevent new operations
+        this.logger.debug("Setting reset flag");
         this._isResetting = true;
-        
+
         // 2. Abort all pending operations
+        this.logger.debug("Aborting pending operations");
         this.abortController.abort();
-        
+
         // 3. Create new abort controller for future operations
+        this.logger.debug("Creating new abort controller");
         this.abortController = new AbortController();
-        
+
         // 4. Clear token and timers
+        this.logger.debug("Clearing token and timers");
         this.clearToken();
-        
+
         // 5. Remove all listeners
+        this.logger.debug("Removing all event listeners");
         this.removeAllListeners();
-        
-        this.logger.info("Auth manager reset completed");
+
+        // 6. Reset the reset flag to allow new operations
+        this.logger.debug("Clearing reset flag");
+        this._isResetting = false;
+
+        this.logger.info("Auth manager reset complete");
     }
 
     // Getter for abort signal
     public getAbortSignal(): AbortSignal {
+        this.logger.trace("getAbortSignal called");
         return this.abortController.signal;
     }
 }
