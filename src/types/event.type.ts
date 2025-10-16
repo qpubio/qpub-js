@@ -18,6 +18,8 @@ export const ChannelEvents = {
     SUBSCRIBED: "subscribed",
     UNSUBSCRIBING: "unsubscribing",
     UNSUBSCRIBED: "unsubscribed",
+    PAUSED: "paused",
+    RESUMED: "resumed",
     FAILED: "failed",
 } as const;
 

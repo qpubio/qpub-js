@@ -15,6 +15,9 @@ export class SocketChannel extends BaseChannel {
     private logger: ILogger;
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
+    private paused: boolean = false;
+    private pausedMessages: Message[] = [];
+    private bufferWhilePaused: boolean = true;
     private messageCallback?: (message: Message) => void;
     private messageHandler: (event: MessageEvent) => void;
 
@@ -23,7 +26,7 @@ export class SocketChannel extends BaseChannel {
         this.wsClient = wsClient;
         this.logger = logger;
         this.logger.debug(`SocketChannel created for: ${name}`);
-        
+
         // Create the message handler function ONCE - never recreate it
         this.messageHandler = (event) => {
             try {
@@ -50,7 +53,7 @@ export class SocketChannel extends BaseChannel {
                 });
             }
         };
-        
+
         this.setupMessageHandler();
     }
 
@@ -65,7 +68,7 @@ export class SocketChannel extends BaseChannel {
 
         // Remove if already attached (idempotent)
         socket.removeEventListener("message", this.messageHandler);
-        
+
         // Attach the handler
         socket.addEventListener("message", this.messageHandler);
         this.logger.debug(
@@ -116,13 +119,26 @@ export class SocketChannel extends BaseChannel {
                     const consumerMessages =
                         this.transformToConsumerMessages(incomingDataMessage);
 
-                    this.logger.debug(
-                        `Dispatching ${consumerMessages.length} message(s) to callback for channel: ${this.name}`
-                    );
-                    // Call the callback for each individual message
-                    consumerMessages.forEach((consumerMessage) => {
-                        this.messageCallback?.(consumerMessage);
-                    });
+                    if (this.paused) {
+                        if (this.bufferWhilePaused) {
+                            this.logger.debug(
+                                `Channel ${this.name} is paused - buffering ${consumerMessages.length} message(s)`
+                            );
+                            this.pausedMessages.push(...consumerMessages);
+                        } else {
+                            this.logger.debug(
+                                `Channel ${this.name} is paused - dropping ${consumerMessages.length} message(s)`
+                            );
+                        }
+                    } else {
+                        this.logger.debug(
+                            `Dispatching ${consumerMessages.length} message(s) to callback for channel: ${this.name}`
+                        );
+                        // Call the callback for each individual message
+                        consumerMessages.forEach((consumerMessage) => {
+                            this.messageCallback?.(consumerMessage);
+                        });
+                    }
                 } else {
                     this.logger.warn(
                         `Received message for channel ${this.name} but not subscribed - ignoring`
@@ -365,6 +381,74 @@ export class SocketChannel extends BaseChannel {
         this.pendingSubscribe = pending;
     }
 
+    public pause(options?: { bufferMessages?: boolean }): void {
+        if (this.paused) {
+            this.logger.debug(
+                `Channel ${this.name} is already paused - ignoring pause request`
+            );
+            return;
+        }
+
+        this.paused = true;
+
+        // Update buffer setting if provided
+        if (options?.bufferMessages !== undefined) {
+            this.bufferWhilePaused = options.bufferMessages;
+        }
+
+        this.logger.info(
+            `Channel ${this.name} paused (buffering: ${this.bufferWhilePaused})`
+        );
+        this.emit(ChannelEvents.PAUSED, {
+            channelName: this.name,
+            buffering: this.bufferWhilePaused,
+        });
+    }
+
+    public resume(): void {
+        if (!this.paused) {
+            this.logger.debug(
+                `Channel ${this.name} is not paused - ignoring resume request`
+            );
+            return;
+        }
+
+        this.paused = false;
+
+        // Deliver buffered messages if any
+        const bufferedCount = this.pausedMessages.length;
+        if (bufferedCount > 0) {
+            this.logger.info(
+                `Channel ${this.name} resumed - delivering ${bufferedCount} buffered message(s)`
+            );
+            this.pausedMessages.forEach((message) => {
+                this.messageCallback?.(message);
+            });
+            this.pausedMessages = [];
+        } else {
+            this.logger.info(`Channel ${this.name} resumed`);
+        }
+
+        this.emit(ChannelEvents.RESUMED, {
+            channelName: this.name,
+            bufferedMessagesDelivered: bufferedCount,
+        });
+    }
+
+    public isPaused(): boolean {
+        return this.paused;
+    }
+
+    public clearBufferedMessages(): void {
+        const count = this.pausedMessages.length;
+        if (count > 0) {
+            this.logger.info(
+                `Clearing ${count} buffered message(s) for channel: ${this.name}`
+            );
+            this.pausedMessages = [];
+        }
+    }
+
     public reset(): void {
         this.logger.info(`Resetting channel: ${this.name}`);
 
@@ -399,6 +483,8 @@ export class SocketChannel extends BaseChannel {
         this.subscribed = false;
         this.messageCallback = undefined;
         this.pendingSubscribe = false;
+        this.paused = false;
+        this.pausedMessages = [];
         this.removeAllListeners();
         this.logger.info(`Channel ${this.name} reset complete`);
     }

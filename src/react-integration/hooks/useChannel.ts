@@ -33,6 +33,7 @@ export function useChannel(channelName: string): UseChannelReturn {
     const [channel, setChannel] = React.useState<SocketChannel | null>(null);
     const [status, setStatus] = React.useState<ChannelEvent>("initialized");
     const [error, setError] = React.useState<Error | null>(null);
+    const [paused, setPaused] = React.useState<boolean>(false);
     const [connectionStatus, setConnectionStatus] =
         React.useState<ConnectionEvent>("closed");
 
@@ -57,11 +58,15 @@ export function useChannel(channelName: string): UseChannelReturn {
         const handleChannelSubscribed = () => setStatus("subscribed");
         const handleChannelUnsubscribed = () => setStatus("initialized");
         const handleChannelFailed = (event: any) => setError(event.error);
+        const handleChannelPaused = () => setPaused(true);
+        const handleChannelResumed = () => setPaused(false);
 
         socketChannel.on(ChannelEvents.SUBSCRIBING, handleChannelSubscribing);
         socketChannel.on(ChannelEvents.SUBSCRIBED, handleChannelSubscribed);
         socketChannel.on(ChannelEvents.UNSUBSCRIBED, handleChannelUnsubscribed);
         socketChannel.on(ChannelEvents.FAILED, handleChannelFailed);
+        socketChannel.on(ChannelEvents.PAUSED, handleChannelPaused);
+        socketChannel.on(ChannelEvents.RESUMED, handleChannelResumed);
 
         return () => {
             // Remove event listeners
@@ -78,7 +83,9 @@ export function useChannel(channelName: string): UseChannelReturn {
                 handleChannelUnsubscribed
             );
             socketChannel.off(ChannelEvents.FAILED, handleChannelFailed);
-            
+            socketChannel.off(ChannelEvents.PAUSED, handleChannelPaused);
+            socketChannel.off(ChannelEvents.RESUMED, handleChannelResumed);
+
             // Release channel reference (core handles ref counting and cleanup)
             socket.channels.release(channelName);
         };
@@ -159,6 +166,28 @@ export function useChannel(channelName: string): UseChannelReturn {
         [channel]
     );
 
+    const pause = React.useCallback(
+        (options?: { bufferMessages?: boolean }) => {
+            if (!channel) return;
+            channel.pause(options);
+        },
+        [channel]
+    );
+
+    const resume = React.useCallback(() => {
+        if (!channel) return;
+        channel.resume();
+    }, [channel]);
+
+    const isPaused = React.useCallback(() => {
+        return channel?.isPaused() ?? false;
+    }, [channel]);
+
+    const clearBufferedMessages = React.useCallback(() => {
+        if (!channel) return;
+        channel.clearBufferedMessages();
+    }, [channel]);
+
     const reset = React.useCallback(() => {
         if (!channel) return;
         channel.reset();
@@ -173,6 +202,7 @@ export function useChannel(channelName: string): UseChannelReturn {
         channel,
         status,
         error,
+        paused,
         ready,
 
         // Core SDK methods (thin wrappers)
@@ -183,6 +213,10 @@ export function useChannel(channelName: string): UseChannelReturn {
         isSubscribed,
         isPendingSubscribe,
         setPendingSubscribe,
+        pause,
+        resume,
+        isPaused,
+        clearBufferedMessages,
         reset,
         getName,
     };

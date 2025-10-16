@@ -16,6 +16,7 @@ export interface UseChannelReturn {
     // States
     status: ChannelEvent;
     error: Error | null;
+    paused: boolean; // Reactive state for pause status
     ready: boolean; // True when both connection and channel are ready
 
     // Core SocketChannel methods
@@ -26,6 +27,10 @@ export interface UseChannelReturn {
     isSubscribed: () => boolean;
     isPendingSubscribe: () => boolean;
     setPendingSubscribe: (pending: boolean) => void;
+    pause: (options?: { bufferMessages?: boolean }) => void;
+    resume: () => void;
+    isPaused: () => boolean;
+    clearBufferedMessages: () => void;
     reset: () => void;
     getName: () => string;
 }

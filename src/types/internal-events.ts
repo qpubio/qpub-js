@@ -22,6 +22,8 @@ export interface ChannelEventPayloads {
   subscribed: { channelName: string; subscriptionId: string };
   unsubscribing: { channelName: string; subscriptionId?: string };
   unsubscribed: { channelName: string; subscriptionId?: string };
+  paused: { channelName: string; buffering: boolean };
+  resumed: { channelName: string; bufferedMessagesDelivered: number };
   failed: { channelName: string; error: Error | ErrorInfo; action?: string };
   message: Message;
 }
