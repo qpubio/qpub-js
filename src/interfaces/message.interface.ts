@@ -39,14 +39,14 @@ export interface IncomingConnectionMessage extends IncomingMessage {
     connection_details?: ConnectionDetails;
 }
 
-// Outgoing connection message
+// Outgoing connection message (Not used yet)
 export interface OutgoingConnectionMessage extends OutgoingMessage {
     action: ActionType.CONNECT | ActionType.DISCONNECT;
-    connectionId?: string;
-    connectionDetails?: ConnectionDetails;
+    connection_id?: string;
+    connection_details?: ConnectionDetails;
 }
 
-// Connection details interface (matches server snake_case format)
+// Connection details interface
 export interface ConnectionDetails {
     alias: string;
     client_id: string;
@@ -57,21 +57,20 @@ export interface ConnectionDetails {
 // Channel message
 //
 
-// Incoming channel message
+// Incoming channel message (Not used yet)
 export interface IncomingChannelMessage extends IncomingMessage {
     action:
         | ActionType.SUBSCRIBED
         | ActionType.UNSUBSCRIBED
         | ActionType.PUBLISHED;
     channel: string;
-    subscriptionId?: string;
+    subscription_id?: string;
 }
 
 // Outgoing channel message
 export interface OutgoingChannelMessage extends OutgoingMessage {
     action: ActionType.SUBSCRIBE | ActionType.UNSUBSCRIBE;
     channel: string;
-    subscriptionId?: string;
 }
 
 //

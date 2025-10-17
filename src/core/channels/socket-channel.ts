@@ -150,11 +150,11 @@ export class SocketChannel extends BaseChannel {
                 this.subscribed = true;
                 this.pendingSubscribe = false;
                 this.logger.info(
-                    `Channel ${this.name} subscribed successfully (subscriptionId: ${message.subscriptionId})`
+                    `Channel ${this.name} subscribed successfully (subscription ID: ${message.subscription_id})`
                 );
                 this.emit(ChannelEvents.SUBSCRIBED, {
                     channelName: this.name,
-                    subscriptionId: message.subscriptionId || "",
+                    subscriptionId: message.subscription_id || "",
                 });
                 break;
 
@@ -163,11 +163,11 @@ export class SocketChannel extends BaseChannel {
                 this.pendingSubscribe = false;
                 this.messageCallback = undefined;
                 this.logger.info(
-                    `Channel ${this.name} unsubscribed (subscriptionId: ${message.subscriptionId})`
+                    `Channel ${this.name} unsubscribed (subscription ID: ${message.subscription_id})`
                 );
                 this.emit(ChannelEvents.UNSUBSCRIBED, {
                     channelName: this.name,
-                    subscriptionId: message.subscriptionId,
+                    subscriptionId: message.subscription_id,
                 });
                 break;
 

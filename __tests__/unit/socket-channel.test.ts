@@ -136,7 +136,7 @@ describe("SocketChannel", () => {
             const subscriptionResponse = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
 
             // Get the message handler and simulate message
@@ -185,7 +185,7 @@ describe("SocketChannel", () => {
                 data: JSON.stringify({
                     action: ActionType.SUBSCRIBED,
                     channel: "test-channel",
-                    subscriptionId: "sub-123",
+                    subscription_id: "sub-123",
                 }),
             } as MessageEvent);
 
@@ -221,7 +221,7 @@ describe("SocketChannel", () => {
                 data: JSON.stringify({
                     action: ActionType.UNSUBSCRIBED,
                     channel: "test-channel",
-                    subscriptionId: "sub-123",
+                    subscription_id: "sub-123",
                 }),
             } as MessageEvent);
 
@@ -702,7 +702,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -750,7 +750,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -795,7 +795,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -843,7 +843,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -914,7 +914,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -955,7 +955,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
@@ -1002,7 +1002,7 @@ describe("SocketChannel", () => {
             const subscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
-                subscriptionId: "sub-123",
+                subscription_id: "sub-123",
             };
             messageHandler?.({
                 data: JSON.stringify(subscribedMessage),
