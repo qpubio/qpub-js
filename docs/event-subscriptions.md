@@ -378,6 +378,53 @@ Benefits:
 - Support for multiple callbacks per event
 - Easy cleanup with targeted unsubscribe
 
+## Technical Details: Operation Queue
+
+### How It Works
+
+The SDK maintains an internal operation queue per channel to handle rapid subscribe/unsubscribe calls:
+
+1. **Normal Operation** - When no operations are in-flight, subscribe/unsubscribe execute immediately
+2. **Queueing** - When an operation is pending (waiting for server acknowledgment), subsequent operations are queued
+3. **Processing** - When the server responds (SUBSCRIBED/UNSUBSCRIBED), the next queued operation executes
+4. **Order Guarantee** - Operations always complete in the order they were called
+
+### Event-Specific Optimizations
+
+Event-specific subscriptions have special handling:
+
+- **Adding event callbacks** - If the channel is already subscribed, event callbacks can be added immediately (no queueing needed)
+- **Removing event callbacks** - If the channel is subscribed and stable, event callbacks can be removed immediately
+- **Full channel operations** - Only queued when they would send a message to the server
+
+This means rapid event switching is extremely efficient:
+
+```typescript
+// These all execute immediately (no server messages needed)
+channel.subscribe(handler1, { event: "event-1" }); // Channel already subscribed
+channel.subscribe(handler2, { event: "event-2" }); // Just adds to callback map
+channel.unsubscribe(handler1, { event: "event-1" }); // Just removes from map
+```
+
+### State Flags
+
+The SDK tracks two internal flags:
+
+- `pendingSubscribe` - Set when SUBSCRIBE message sent, cleared when SUBSCRIBED received
+- `pendingUnsubscribe` - Set when UNSUBSCRIBE message sent, cleared when UNSUBSCRIBED received
+
+Operations check these flags to determine whether to execute immediately or queue.
+
+## Best Practices
+
+1. **Store callbacks in stable references** - Use `useCallback` in React or store in variables to avoid unintended unsubscribes
+2. **Clean up subscriptions** - Always unsubscribe when components unmount or channels are no longer needed
+3. **Use event-specific subscriptions** - When you only care about certain event types, event-specific subscriptions are more efficient
+4. **Avoid mixing patterns** - Choose either catch-all OR event-specific subscriptions, not both simultaneously
+5. **No artificial delays needed** - The SDK handles race conditions automatically; don't use `setTimeout` workarounds
+6. **Handle errors** - Implement proper error handling for subscription failures
+7. **Test subscription lifecycle** - Write tests for subscribe, message handling, and unsubscribe flows
+
 ## Notes
 
 - Event-specific subscriptions are optional - you can still subscribe without an event option to receive all messages

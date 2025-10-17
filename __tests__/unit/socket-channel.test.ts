@@ -606,7 +606,7 @@ describe("SocketChannel", () => {
             // Subscribe
             channel.subscribe(() => {});
             expect(channel.isSubscribed()).toBe(false); // Not yet confirmed
-            expect(channel.isPendingSubscribe()).toBe(false); // Reset after subscribe call
+            expect(channel.isPendingSubscribe()).toBe(true); // Set to true until server confirms
 
             // Simulate subscription confirmation
             const messageHandler =
@@ -1754,7 +1754,7 @@ describe("SocketChannel", () => {
 
             // Re-subscribe and send message
             channel.subscribe(jest.fn());
-            
+
             // Simulate SUBSCRIBED confirmation
             messageHandler?.({
                 data: JSON.stringify({
@@ -1817,6 +1817,352 @@ describe("SocketChannel", () => {
 
             // Callback should not be called
             expect(callback).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("Operation Queue (Race Condition Handling)", () => {
+        it("should queue subscribe when unsubscribe is pending", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // First subscribe
+            channel.subscribe(callback1);
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Clear previous calls
+            mocks.wsClient.send.mockClear();
+
+            // Call unsubscribe (this sets pendingUnsubscribe = true)
+            channel.unsubscribe();
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+
+            // Immediately call subscribe - should be queued
+            mocks.wsClient.send.mockClear();
+            channel.subscribe(callback2);
+
+            // Subscribe message should NOT be sent yet
+            expect(mocks.wsClient.send).not.toHaveBeenCalled();
+
+            // Simulate UNSUBSCRIBED acknowledgment
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Now the queued subscribe should be executed
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+        });
+
+        it("should queue unsubscribe when subscribe is pending", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const callback = jest.fn();
+
+            // Call subscribe (this sets pendingSubscribe = true)
+            channel.subscribe(callback);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+
+            // Immediately call unsubscribe - should be queued
+            mocks.wsClient.send.mockClear();
+            channel.unsubscribe();
+
+            // Unsubscribe message should NOT be sent yet
+            expect(mocks.wsClient.send).not.toHaveBeenCalled();
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED acknowledgment
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Now the queued unsubscribe should be executed
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+        });
+
+        it("should handle rapid unsubscribe -> subscribe with different events", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const oldEventCallback = jest.fn();
+            const newEventCallback = jest.fn();
+
+            // Subscribe to old event
+            channel.subscribe(oldEventCallback, { event: "old-event" });
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            expect(channel.isSubscribed()).toBe(true);
+
+            // Clear previous calls
+            mocks.wsClient.send.mockClear();
+
+            // Rapidly change from old-event to new-event
+            channel.unsubscribe(oldEventCallback, { event: "old-event" });
+            channel.subscribe(newEventCallback, { event: "new-event" });
+
+            // First unsubscribe should trigger (fully unsubscribes since no more event callbacks)
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+
+            // Subscribe should be queued
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+
+            // Simulate UNSUBSCRIBED acknowledgment
+            mocks.wsClient.send.mockClear();
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Now the queued subscribe should execute
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+
+            // Simulate SUBSCRIBED confirmation for new subscription
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-456",
+                }),
+            } as MessageEvent);
+
+            // Send a message with new event
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [{ event: "new-event", data: { test: true } }],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // New callback should be called, old should not
+            expect(newEventCallback).toHaveBeenCalledTimes(1);
+            expect(oldEventCallback).not.toHaveBeenCalled();
+        });
+
+        it("should process multiple queued operations in order", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // Subscribe
+            channel.subscribe(callback1);
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-1",
+                }),
+            } as MessageEvent);
+
+            mocks.wsClient.send.mockClear();
+
+            // Queue multiple operations rapidly
+            channel.unsubscribe(); // Operation 1: Execute immediately
+            channel.subscribe(callback2); // Operation 2: Queue
+            channel.unsubscribe(); // Operation 3: Queue
+
+            // Only first unsubscribe should be sent
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+
+            // Process first acknowledgment
+            mocks.wsClient.send.mockClear();
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-1",
+                }),
+            } as MessageEvent);
+
+            // Second operation (subscribe) should execute
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+
+            // Process second acknowledgment
+            mocks.wsClient.send.mockClear();
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-2",
+                }),
+            } as MessageEvent);
+
+            // Third operation (unsubscribe) should execute
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+        });
+
+        it("should not queue when no operations are pending", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // First subscribe
+            channel.subscribe(callback1);
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            mocks.wsClient.send.mockClear();
+
+            // Now call unsubscribe after subscribe completed
+            channel.unsubscribe();
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":6')
+            );
+
+            // Simulate UNSUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            mocks.wsClient.send.mockClear();
+
+            // Now call subscribe after unsubscribe completed
+            channel.subscribe(callback2);
+            expect(mocks.wsClient.send).toHaveBeenCalledTimes(1);
+            expect(mocks.wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+        });
+
+        it("should clear operation queue on reset", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // Subscribe
+            channel.subscribe(callback1);
+
+            // Get message handler
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-1",
+                }),
+            } as MessageEvent);
+
+            // Queue operations
+            channel.unsubscribe();
+            channel.subscribe(callback2);
+
+            // Reset the channel
+            channel.reset();
+
+            // Simulate acknowledgment - should not process queue
+            mocks.wsClient.send.mockClear();
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-1",
+                }),
+            } as MessageEvent);
+
+            // No operations should execute after reset
+            expect(mocks.wsClient.send).not.toHaveBeenCalled();
         });
     });
 });

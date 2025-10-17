@@ -14,11 +14,28 @@ import {
     SubscribeOptions,
 } from "../../interfaces/channel.interface";
 
+// Operation types for the queue
+interface SubscribeOperation {
+    type: "subscribe";
+    callback: (message: Message) => void;
+    options?: SubscribeOptions;
+}
+
+interface UnsubscribeOperation {
+    type: "unsubscribe";
+    callback?: (message: Message) => void;
+    options?: SubscribeOptions;
+}
+
+type QueuedOperation = SubscribeOperation | UnsubscribeOperation;
+
 export class SocketChannel extends BaseChannel {
     private wsClient: IWebSocketClient;
     private logger: ILogger;
     private subscribed: boolean = false;
     private pendingSubscribe: boolean = false;
+    private pendingUnsubscribe: boolean = false;
+    private operationQueue: QueuedOperation[] = [];
     private paused: boolean = false;
     private pausedMessages: Message[] = [];
     private bufferWhilePaused: boolean = true;
@@ -80,6 +97,35 @@ export class SocketChannel extends BaseChannel {
         this.logger.debug(
             `Message handler setup complete for channel: ${this.name}`
         );
+    }
+
+    /**
+     * Processes the next operation in the queue if the channel is in a stable state.
+     * This is called after receiving SUBSCRIBED or UNSUBSCRIBED acknowledgments.
+     */
+    private processOperationQueue(): void {
+        // Only process queue if we're in a stable state (no pending operations)
+        if (this.pendingSubscribe || this.pendingUnsubscribe) {
+            this.logger.debug(
+                `Channel ${this.name} has pending operations - deferring queue processing`
+            );
+            return;
+        }
+
+        if (this.operationQueue.length === 0) {
+            return;
+        }
+
+        const operation = this.operationQueue.shift()!;
+        this.logger.info(
+            `Processing queued ${operation.type} operation for channel: ${this.name} (${this.operationQueue.length} remaining in queue)`
+        );
+
+        if (operation.type === "subscribe") {
+            this.executeSubscribe(operation.callback, operation.options);
+        } else {
+            this.executeUnsubscribe(operation.callback, operation.options);
+        }
     }
 
     /**
@@ -162,11 +208,14 @@ export class SocketChannel extends BaseChannel {
                     channelName: this.name,
                     subscriptionId: message.subscription_id || "",
                 });
+                // Process any queued operations now that subscribe completed
+                this.processOperationQueue();
                 break;
 
             case ActionType.UNSUBSCRIBED:
                 this.subscribed = false;
                 this.pendingSubscribe = false;
+                this.pendingUnsubscribe = false;
                 this.messageCallback = undefined;
                 this.eventCallbacks.clear();
                 this.logger.info(
@@ -176,6 +225,8 @@ export class SocketChannel extends BaseChannel {
                     channelName: this.name,
                     subscriptionId: message.subscription_id,
                 });
+                // Process any queued operations now that unsubscribe completed
+                this.processOperationQueue();
                 break;
 
             case ActionType.ERROR:
@@ -247,12 +298,15 @@ export class SocketChannel extends BaseChannel {
         }
     }
 
+    /**
+     * Public subscribe method that handles queueing if operations are in-flight.
+     */
     public subscribe(
         callback: (message: Message) => void,
         options?: SubscribeOptions
     ): void {
         this.logger.debug(
-            `Subscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event}, pending: ${this.pendingSubscribe})`
+            `Subscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event}, pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
         );
 
         if (!this.wsClient.isConnected()) {
@@ -266,6 +320,59 @@ export class SocketChannel extends BaseChannel {
             );
             throw error;
         }
+
+        // Special handling for event-specific subscriptions:
+        // They can proceed if the channel is already subscribed or subscribing
+        // (unless an unsubscribe is pending)
+        // because they just add to the event callbacks map
+        if (options?.event) {
+            // If unsubscribe is pending, we must queue
+            if (this.pendingUnsubscribe) {
+                this.logger.info(
+                    `Queueing event subscribe operation for channel ${this.name} (pendingUnsubscribe: ${this.pendingUnsubscribe})`
+                );
+                this.operationQueue.push({
+                    type: "subscribe",
+                    callback,
+                    options,
+                });
+                return;
+            }
+            // Channel is already subscribed or subscribing, just add the event callback
+            if (this.isSubscribed() || this.pendingSubscribe) {
+                this.executeSubscribe(callback, options);
+                return;
+            }
+        } else {
+            // Catch-all subscription - must wait for any pending operations
+            if (this.pendingUnsubscribe || this.pendingSubscribe) {
+                this.logger.info(
+                    `Queueing subscribe operation for channel ${this.name} (pendingUnsubscribe: ${this.pendingUnsubscribe}, pendingSubscribe: ${this.pendingSubscribe})`
+                );
+                this.operationQueue.push({
+                    type: "subscribe",
+                    callback,
+                    options,
+                });
+                return;
+            }
+        }
+
+        // No pending operations, execute immediately
+        this.executeSubscribe(callback, options);
+    }
+
+    /**
+     * Internal method that actually executes the subscribe operation.
+     * This is called either immediately or after processing the queue.
+     */
+    private executeSubscribe(
+        callback: (message: Message) => void,
+        options?: SubscribeOptions
+    ): void {
+        this.logger.debug(
+            `Executing subscribe for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event})`
+        );
 
         // Handle event-specific subscription
         if (options?.event) {
@@ -304,7 +411,7 @@ export class SocketChannel extends BaseChannel {
                         }
                     }
                 };
-                this.pendingSubscribe = false;
+                this.pendingSubscribe = true;
 
                 const actionMessage: OutgoingChannelMessage = {
                     action: ActionType.SUBSCRIBE,
@@ -343,7 +450,7 @@ export class SocketChannel extends BaseChannel {
         this.messageCallback = callback;
         // Clear event-specific callbacks when using catch-all
         this.eventCallbacks.clear();
-        this.pendingSubscribe = false;
+        this.pendingSubscribe = true;
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.SUBSCRIBE,
@@ -375,18 +482,24 @@ export class SocketChannel extends BaseChannel {
             const existingCallback = this.messageCallback;
             const existingEventCallbacks = new Map(this.eventCallbacks);
 
+            // Clear pending flags before resubscribing (important for reconnection scenarios)
+            this.pendingSubscribe = false;
+            this.pendingUnsubscribe = false;
+
             // If we have event-specific callbacks, resubscribe to each
             if (existingEventCallbacks.size > 0) {
                 Array.from(existingEventCallbacks.entries()).forEach(
                     ([event, callbacks]) => {
                         Array.from(callbacks).forEach((callback) => {
-                            this.subscribe(callback, { event });
+                            // Use executeSubscribe directly to bypass queueing
+                            this.executeSubscribe(callback, { event });
                         });
                     }
                 );
             } else if (existingCallback) {
                 // Otherwise, resubscribe with the catch-all callback
-                this.subscribe(existingCallback);
+                // Use executeSubscribe directly to bypass queueing
+                this.executeSubscribe(existingCallback);
             }
         } catch (error) {
             this.logger.error(
@@ -403,7 +516,62 @@ export class SocketChannel extends BaseChannel {
         }
     }
 
+    /**
+     * Public unsubscribe method that handles queueing if operations are in-flight.
+     */
     public unsubscribe(
+        callback?: (message: Message) => void,
+        options?: SubscribeOptions
+    ): void {
+        this.logger.debug(
+            `Unsubscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event}, pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
+        );
+
+        // Special handling for event-specific unsubscriptions:
+        // They can proceed if the channel is subscribed because they just
+        // remove from the event callbacks map
+        if (options?.event) {
+            if (this.isSubscribed() && !this.pendingUnsubscribe) {
+                // Channel is subscribed and stable, can remove event callback immediately
+                this.executeUnsubscribe(callback, options);
+                return;
+            }
+            // Otherwise queue it
+            if (this.pendingSubscribe || this.pendingUnsubscribe) {
+                this.logger.info(
+                    `Queueing event unsubscribe operation for channel ${this.name} (pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
+                );
+                this.operationQueue.push({
+                    type: "unsubscribe",
+                    callback,
+                    options,
+                });
+                return;
+            }
+        } else {
+            // Full channel unsubscribe - must wait for any pending operations
+            if (this.pendingSubscribe || this.pendingUnsubscribe) {
+                this.logger.info(
+                    `Queueing unsubscribe operation for channel ${this.name} (pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
+                );
+                this.operationQueue.push({
+                    type: "unsubscribe",
+                    callback,
+                    options,
+                });
+                return;
+            }
+        }
+
+        // No pending operations, execute immediately
+        this.executeUnsubscribe(callback, options);
+    }
+
+    /**
+     * Internal method that actually executes the unsubscribe operation.
+     * This is called either immediately or after processing the queue.
+     */
+    private executeUnsubscribe(
         callback?: (message: Message) => void,
         options?: SubscribeOptions
     ): void {
@@ -478,6 +646,7 @@ export class SocketChannel extends BaseChannel {
         this.emit(ChannelEvents.UNSUBSCRIBING, {
             channelName: this.name,
         });
+        this.pendingUnsubscribe = true;
 
         const actionMessage: OutgoingChannelMessage = {
             action: ActionType.UNSUBSCRIBE,
@@ -612,6 +781,8 @@ export class SocketChannel extends BaseChannel {
         this.messageCallback = undefined;
         this.eventCallbacks.clear();
         this.pendingSubscribe = false;
+        this.pendingUnsubscribe = false;
+        this.operationQueue = [];
         this.paused = false;
         this.pausedMessages = [];
         this.removeAllListeners();
