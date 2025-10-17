@@ -439,6 +439,10 @@ export class SocketChannel extends BaseChannel {
         return this.paused;
     }
 
+    public hasCallback(): boolean {
+        return !!this.messageCallback;
+    }
+
     public clearBufferedMessages(): void {
         const count = this.pausedMessages.length;
         if (count > 0) {

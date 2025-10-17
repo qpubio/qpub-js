@@ -637,6 +637,72 @@ describe("SocketChannel", () => {
             channel.setPendingSubscribe(false);
             expect(channel.isPendingSubscribe()).toBe(false);
         });
+
+        it("should track callback state correctly", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+
+            // Initially no callback
+            expect(channel.hasCallback()).toBe(false);
+
+            // After subscribing, should have callback
+            channel.subscribe(() => {});
+            expect(channel.hasCallback()).toBe(true);
+
+            // Get message handler to simulate server messages
+            const messageHandler =
+                mocks.mockSocket.addEventListener.mock.calls.find(
+                    (call) => call[0] === "message"
+                )?.[1];
+
+            // Simulate server subscription confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            expect(channel.isSubscribed()).toBe(true);
+
+            // After unsubscribing, callback should still exist until server confirms
+            channel.unsubscribe();
+            expect(channel.hasCallback()).toBe(true);
+
+            // Simulate server unsubscribe confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                }),
+            } as MessageEvent);
+
+            // Now callback should be cleared
+            expect(channel.hasCallback()).toBe(false);
+        });
+
+        it("should retain callback state after subscribe even without server confirmation", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+
+            expect(channel.hasCallback()).toBe(false);
+
+            channel.subscribe(() => {});
+            // Even without server SUBSCRIBED message, callback should be registered
+            expect(channel.hasCallback()).toBe(true);
+        });
+
+        it("should clear callback state on reset", () => {
+            const mocks = createTestMocks();
+            const channel = createChannel("test-channel", mocks);
+
+            channel.subscribe(() => {});
+            expect(channel.hasCallback()).toBe(true);
+
+            channel.reset();
+            expect(channel.hasCallback()).toBe(false);
+        });
     });
 
     describe("Pause/Resume Management", () => {

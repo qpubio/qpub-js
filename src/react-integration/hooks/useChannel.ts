@@ -183,6 +183,10 @@ export function useChannel(channelName: string): UseChannelReturn {
         return channel?.isPaused() ?? false;
     }, [channel]);
 
+    const hasCallback = React.useCallback(() => {
+        return channel?.hasCallback() ?? false;
+    }, [channel]);
+
     const clearBufferedMessages = React.useCallback(() => {
         if (!channel) return;
         channel.clearBufferedMessages();
@@ -216,6 +220,7 @@ export function useChannel(channelName: string): UseChannelReturn {
         pause,
         resume,
         isPaused,
+        hasCallback,
         clearBufferedMessages,
         reset,
         getName,

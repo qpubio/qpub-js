@@ -177,12 +177,16 @@ describe("SocketChannelManager", () => {
             expect(setPendingSpy3).toHaveBeenCalledWith(true);
         });
 
-        it("should resubscribe all channels", async () => {
+        it("should only resubscribe channels with callbacks", async () => {
             const mocks = createTestMocks();
             const manager = createChannelManager(mocks);
 
             const channel1 = manager.get("channel-1");
             const channel2 = manager.get("channel-2");
+
+            // Mock hasCallback to return true for channel1, false for channel2
+            jest.spyOn(channel1, "hasCallback").mockReturnValue(true);
+            jest.spyOn(channel2, "hasCallback").mockReturnValue(false);
 
             const resubscribeSpy1 = jest
                 .spyOn(channel1, "resubscribe")
@@ -193,16 +197,45 @@ describe("SocketChannelManager", () => {
 
             await manager.resubscribeAllChannels();
 
+            // Only channel1 should be resubscribed
             expect(resubscribeSpy1).toHaveBeenCalled();
-            expect(resubscribeSpy2).toHaveBeenCalled();
+            expect(resubscribeSpy2).not.toHaveBeenCalled();
             expect(mocks.logger.debug).toHaveBeenCalledWith(
-                "Resubscribing to 2 channels"
+                "Resubscribing to 1 channel(s)"
             );
             expect(mocks.logger.debug).toHaveBeenCalledWith(
                 "Resubscribed to channel: channel-1"
             );
-            expect(mocks.logger.debug).toHaveBeenCalledWith(
+            expect(mocks.logger.debug).not.toHaveBeenCalledWith(
                 "Resubscribed to channel: channel-2"
+            );
+        });
+
+        it("should skip resubscribe when no channels have callbacks", async () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            const channel1 = manager.get("channel-1");
+            const channel2 = manager.get("channel-2");
+
+            // Both channels don't have callbacks
+            jest.spyOn(channel1, "hasCallback").mockReturnValue(false);
+            jest.spyOn(channel2, "hasCallback").mockReturnValue(false);
+
+            const resubscribeSpy1 = jest
+                .spyOn(channel1, "resubscribe")
+                .mockResolvedValue();
+            const resubscribeSpy2 = jest
+                .spyOn(channel2, "resubscribe")
+                .mockResolvedValue();
+
+            await manager.resubscribeAllChannels();
+
+            // Neither channel should be resubscribed
+            expect(resubscribeSpy1).not.toHaveBeenCalled();
+            expect(resubscribeSpy2).not.toHaveBeenCalled();
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "No channels with active subscriptions to resubscribe"
             );
         });
 
@@ -212,6 +245,10 @@ describe("SocketChannelManager", () => {
 
             const channel1 = manager.get("channel-1");
             const channel2 = manager.get("channel-2");
+
+            // Both channels have callbacks
+            jest.spyOn(channel1, "hasCallback").mockReturnValue(true);
+            jest.spyOn(channel2, "hasCallback").mockReturnValue(true);
 
             const error = new Error("Resubscribe failed");
             jest.spyOn(channel1, "resubscribe").mockRejectedValue(error);

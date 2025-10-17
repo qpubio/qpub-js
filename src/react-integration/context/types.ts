@@ -30,6 +30,7 @@ export interface UseChannelReturn {
     pause: (options?: { bufferMessages?: boolean }) => void;
     resume: () => void;
     isPaused: () => boolean;
+    hasCallback: () => boolean;
     clearBufferedMessages: () => void;
     reset: () => void;
     getName: () => string;

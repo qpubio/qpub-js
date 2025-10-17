@@ -118,11 +118,24 @@ export class SocketChannelManager
     }
 
     public async resubscribeAllChannels(): Promise<void> {
-        const channels = this.getAllChannels();
+        const allChannels = this.getAllChannels();
+        // Only attempt to resubscribe channels that have a callback (were previously subscribed)
+        const channelsToResubscribe = allChannels.filter((channel) =>
+            channel.hasCallback()
+        );
 
-        this.logger.debug(`Resubscribing to ${channels.length} channels`);
+        if (channelsToResubscribe.length === 0) {
+            this.logger.debug(
+                `No channels with active subscriptions to resubscribe`
+            );
+            return;
+        }
 
-        for (const channel of channels) {
+        this.logger.debug(
+            `Resubscribing to ${channelsToResubscribe.length} channel(s)`
+        );
+
+        for (const channel of channelsToResubscribe) {
             try {
                 await channel.resubscribe();
                 this.logger.debug(
