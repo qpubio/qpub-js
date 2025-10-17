@@ -301,4 +301,114 @@ describe("SocketChannelManager", () => {
             );
         });
     });
+
+    describe("Reference Counting and Release", () => {
+        it("should increment reference count on get", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            manager.get("test-channel");
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Channel test-channel reference count: 1"
+            );
+
+            manager.get("test-channel");
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Channel test-channel reference count: 2"
+            );
+        });
+
+        it("should decrement reference count on release", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            manager.get("test-channel");
+            manager.get("test-channel");
+
+            manager.release("test-channel");
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Channel test-channel reference count: 1"
+            );
+        });
+
+        it("should remove channel when ref count reaches 0 and no callback", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            const channel = manager.get("test-channel");
+            jest.spyOn(channel, "hasCallback").mockReturnValue(false);
+
+            expect(manager.has("test-channel")).toBe(true);
+
+            manager.release("test-channel");
+
+            expect(manager.has("test-channel")).toBe(false);
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Last reference to channel test-channel released - cleaning up"
+            );
+        });
+
+        it("should keep channel when ref count reaches 0 but has callback", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            const channel = manager.get("test-channel");
+            jest.spyOn(channel, "hasCallback").mockReturnValue(true);
+
+            expect(manager.has("test-channel")).toBe(true);
+
+            manager.release("test-channel");
+
+            // Channel should still exist
+            expect(manager.has("test-channel")).toBe(true);
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Last reference to channel test-channel released - keeping for auto-resubscribe (ref count: 0)"
+            );
+        });
+
+        it("should re-acquire channel that was kept with ref count 0", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            const channel1 = manager.get("test-channel");
+            jest.spyOn(channel1, "hasCallback").mockReturnValue(true);
+
+            manager.release("test-channel");
+            expect(manager.has("test-channel")).toBe(true);
+
+            // Get again - should return same channel
+            const channel2 = manager.get("test-channel");
+            expect(channel2).toBe(channel1);
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Channel test-channel re-acquired (was kept for auto-resubscribe, ref count: 1)"
+            );
+        });
+
+        it("should handle release of channel with ref count 0", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            const channel = manager.get("test-channel");
+            jest.spyOn(channel, "hasCallback").mockReturnValue(true);
+
+            manager.release("test-channel");
+            // Try to release again
+            manager.release("test-channel");
+
+            expect(mocks.logger.debug).toHaveBeenCalledWith(
+                "Attempted to release channel test-channel that has ref count 0 (kept for auto-resubscribe)"
+            );
+        });
+
+        it("should warn when releasing non-existent channel", () => {
+            const mocks = createTestMocks();
+            const manager = createChannelManager(mocks);
+
+            manager.release("non-existent");
+
+            expect(mocks.logger.warn).toHaveBeenCalledWith(
+                "Attempted to release channel non-existent with no active references"
+            );
+        });
+    });
 });

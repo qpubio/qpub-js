@@ -337,13 +337,13 @@ export class SocketChannel extends BaseChannel {
             return;
         }
 
-        // If WebSocket is not connected, just clean up local state
+        // If WebSocket is not connected, don't send unsubscribe but keep callback for auto-resubscribe
         if (!this.wsClient.isConnected()) {
-            this.logger.warn(
-                `WebSocket not connected - cleaning up local state for channel: ${this.name}`
+            this.logger.debug(
+                `WebSocket not connected - clearing subscription flag but keeping callback for auto-resubscribe`
             );
             this.subscribed = false;
-            this.messageCallback = undefined;
+            // Don't clear messageCallback - preserve it for auto-resubscribe on reconnection
             this.emit(ChannelEvents.UNSUBSCRIBED, {
                 channelName: this.name,
             });

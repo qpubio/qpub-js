@@ -121,7 +121,7 @@ export function useChannel(channelName: string): UseChannelReturn {
                 handleConnectionFailed
             );
         };
-    }, [socket, channelName]);
+    }, [socket]); // channelName is not needed - connection events aren't channel-specific
 
     // Thin wrapper methods that just call the core SDK methods
     const subscribe = React.useCallback(

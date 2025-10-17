@@ -28,7 +28,9 @@ export class SocketChannelManager
     }
 
     public get(channelName: string): SocketChannel {
-        if (!this.channels.has(channelName)) {
+        const isNewChannel = !this.channels.has(channelName);
+
+        if (isNewChannel) {
             this.logger.debug(`Creating new socket channel: ${channelName}`);
             this.channels.set(
                 channelName,
@@ -39,50 +41,81 @@ export class SocketChannelManager
         // Increment reference count
         const currentCount = this.channelRefCounts.get(channelName) || 0;
         this.channelRefCounts.set(channelName, currentCount + 1);
-        this.logger.debug(
-            `Channel ${channelName} reference count: ${currentCount + 1}`
-        );
+
+        if (!isNewChannel && currentCount === 0) {
+            // Channel existed with ref count 0 (was kept for auto-resubscribe)
+            this.logger.debug(
+                `Channel ${channelName} re-acquired (was kept for auto-resubscribe, ref count: 1)`
+            );
+        } else {
+            this.logger.debug(
+                `Channel ${channelName} reference count: ${currentCount + 1}`
+            );
+        }
 
         return this.channels.get(channelName)!;
     }
 
     /**
-     * Release a reference to a channel. When the reference count reaches 0,
-     * the channel is automatically unsubscribed and removed from the manager.
+     * Release a reference to a channel. When the reference count reaches 0:
+     * - If the channel has a callback (was subscribed), keep it for auto-resubscribe
+     * - If the channel has no callback (was never subscribed), remove it completely
      *
      * @param channelName - The name of the channel to release
      */
     public release(channelName: string): void {
-        const count = this.channelRefCounts.get(channelName) || 0;
+        const count = this.channelRefCounts.get(channelName);
 
-        if (count <= 0) {
+        if (count === undefined || count < 0) {
             this.logger.warn(
                 `Attempted to release channel ${channelName} with no active references`
             );
             return;
         }
 
-        if (count === 1) {
-            // Last reference - clean up the channel completely
+        if (count === 0) {
+            // Channel exists with ref count 0 (kept for auto-resubscribe)
+            // This shouldn't happen in normal use, but handle it gracefully
             this.logger.debug(
-                `Last reference to channel ${channelName} released - cleaning up`
+                `Attempted to release channel ${channelName} that has ref count 0 (kept for auto-resubscribe)`
             );
+            return;
+        }
+
+        if (count === 1) {
+            // Last reference - check if we should keep the channel for auto-resubscribe
             const channel = this.channels.get(channelName);
-            if (channel) {
-                // Call reset() which properly cleans up WebSocket handlers and unsubscribes
-                try {
-                    channel.reset();
-                } catch (error) {
-                    this.logger.warn(
-                        `Failed to reset channel ${channelName} during cleanup:`,
-                        error
+
+            if (channel && channel.hasCallback()) {
+                // Channel was subscribed - keep it in manager for auto-resubscribe
+                // Just decrement ref count to 0, don't remove
+                this.channelRefCounts.set(channelName, 0);
+                this.logger.debug(
+                    `Last reference to channel ${channelName} released - keeping for auto-resubscribe (ref count: 0)`
+                );
+            } else {
+                // Channel was never subscribed - clean up completely
+                this.logger.debug(
+                    `Last reference to channel ${channelName} released - cleaning up`
+                );
+                if (channel) {
+                    // Call reset() which properly cleans up WebSocket handlers
+                    try {
+                        channel.reset();
+                    } catch (error) {
+                        this.logger.warn(
+                            `Failed to reset channel ${channelName} during cleanup:`,
+                            error
+                        );
+                    }
+                    // Remove the channel from the manager
+                    this.channels.delete(channelName);
+                    this.logger.debug(
+                        `Channel ${channelName} removed from manager`
                     );
                 }
-                // Remove the channel from the manager
-                this.channels.delete(channelName);
-                this.logger.debug(`Channel ${channelName} removed from manager`);
+                this.channelRefCounts.delete(channelName);
             }
-            this.channelRefCounts.delete(channelName);
         } else {
             // Still have other references
             this.channelRefCounts.set(channelName, count - 1);
