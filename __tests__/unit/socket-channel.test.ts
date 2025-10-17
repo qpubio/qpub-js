@@ -443,7 +443,7 @@ describe("SocketChannel", () => {
             const event = "greeting";
             const alias = "alias-123";
 
-            await channel.publish(data, event, alias);
+            await channel.publish(data, { event, alias });
 
             expect(mocks.wsClient.send).toHaveBeenCalledWith(
                 JSON.stringify({
@@ -1094,6 +1094,729 @@ describe("SocketChannel", () => {
 
             expect(resumeEvents).toHaveLength(1);
             expect(resumeEvents[0].bufferedMessagesDelivered).toBe(2);
+        });
+    });
+
+    describe("Event-Specific Subscriptions with Options", () => {
+        it("should route messages by event name when event option is set", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe with event option
+            channel.subscribe(callback, { event: "user-login" });
+
+            // Simulate SUBSCRIBED confirmation
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Send messages with different events
+            const dataMessage1: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "user-login", data: { userId: 1 } },
+                    { event: "user-logout", data: { userId: 2 } },
+                    { event: "user-login", data: { userId: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage1),
+            } as MessageEvent);
+
+            // Only messages with "user-login" event should be received
+            expect(receivedMessages).toHaveLength(2);
+            expect(receivedMessages[0].event).toBe("user-login");
+            expect(receivedMessages[0].data).toEqual({ userId: 1 });
+            expect(receivedMessages[1].event).toBe("user-login");
+            expect(receivedMessages[1].data).toEqual({ userId: 3 });
+        });
+
+        it("should ignore messages without event when event option is set", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe with event option
+            channel.subscribe(callback, { event: "specific-event" });
+
+            // Simulate SUBSCRIBED confirmation
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Send messages with and without events
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "specific-event", data: { id: 1 } },
+                    { data: { id: 2 } }, // No event property
+                    { event: "other-event", data: { id: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Only the message with matching event should be received
+            expect(receivedMessages).toHaveLength(1);
+            expect(receivedMessages[0].event).toBe("specific-event");
+            expect(receivedMessages[0].data).toEqual({ id: 1 });
+        });
+
+        it("should receive all messages when no event option is set", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe without event option
+            channel.subscribe(callback);
+
+            // Simulate SUBSCRIBED confirmation
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Send messages with different events
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "event-1", data: { id: 1 } },
+                    { event: "event-2", data: { id: 2 } },
+                    { data: { id: 3 } }, // No event
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // All messages should be received
+            expect(receivedMessages).toHaveLength(3);
+            expect(receivedMessages[0].event).toBe("event-1");
+            expect(receivedMessages[1].event).toBe("event-2");
+            expect(receivedMessages[2].event).toBeUndefined();
+        });
+
+        it("should route buffered messages when resuming with event option", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe with event option
+            channel.subscribe(callback, { event: "important" });
+
+            // Simulate SUBSCRIBED confirmation
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Pause the channel
+            channel.pause({ bufferMessages: true });
+
+            // Send messages while paused
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "important", data: { id: 1 } },
+                    { event: "not-important", data: { id: 2 } },
+                    { event: "important", data: { id: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // No messages should be received yet
+            expect(receivedMessages).toHaveLength(0);
+
+            // Resume the channel
+            channel.resume();
+
+            // Only filtered messages should be delivered
+            expect(receivedMessages).toHaveLength(2);
+            expect(receivedMessages[0].event).toBe("important");
+            expect(receivedMessages[0].data).toEqual({ id: 1 });
+            expect(receivedMessages[1].event).toBe("important");
+            expect(receivedMessages[1].data).toEqual({ id: 3 });
+        });
+
+        it("should preserve event-specific subscription on resubscribe", async () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const callback = jest.fn();
+
+            // Subscribe with event option
+            channel.subscribe(callback, { event: "my-event" });
+
+            // Clear the send mock to check resubscribe call
+            wsClient.send.mockClear();
+
+            // Trigger resubscribe
+            await channel.resubscribe();
+
+            // Should have sent SUBSCRIBE message (action: 4)
+            expect(wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
+
+            // Now verify the event-specific subscription is still active
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-456",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Send messages with different events
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "my-event", data: { id: 1 } },
+                    { event: "other-event", data: { id: 2 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Only message with "my-event" should be received
+            expect(callback).toHaveBeenCalledTimes(1);
+            expect(callback.mock.calls[0][0].event).toBe("my-event");
+        });
+
+        it("should support multiple event subscriptions simultaneously", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback1 = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe with first event
+            channel.subscribe(callback1, { event: "event-1" });
+
+            // Simulate SUBSCRIBED confirmation
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            const subscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(subscribedMessage),
+            } as MessageEvent);
+
+            // Add another subscription with different event
+            const callback2 = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+            channel.subscribe(callback2, { event: "event-2" });
+
+            // Send messages with different events
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "event-1", data: { id: 1 } },
+                    { event: "event-2", data: { id: 2 } },
+                    { event: "event-3", data: { id: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Both event-1 and event-2 messages should be received
+            expect(receivedMessages).toHaveLength(2);
+            expect(receivedMessages[0].event).toBe("event-1");
+            expect(receivedMessages[0].data).toEqual({ id: 1 });
+            expect(receivedMessages[1].event).toBe("event-2");
+            expect(receivedMessages[1].data).toEqual({ id: 2 });
+            // Both callbacks should be called
+            expect(callback1).toHaveBeenCalledTimes(1);
+            expect(callback2).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("Event-Specific Subscriptions", () => {
+        it("should subscribe callback to specific event", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const receivedMessages: Message[] = [];
+            const callback = jest.fn((message: Message) => {
+                receivedMessages.push(message);
+            });
+
+            // Subscribe to specific event
+            channel.subscribe(callback, { event: "user-login" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Send messages with different events
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "user-login", data: { userId: 1 } },
+                    { event: "user-logout", data: { userId: 2 } },
+                    { event: "user-login", data: { userId: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Only user-login messages should be received
+            expect(receivedMessages).toHaveLength(2);
+            expect(receivedMessages[0].event).toBe("user-login");
+            expect(receivedMessages[1].event).toBe("user-login");
+        });
+
+        it("should support multiple callbacks for different events", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const loginMessages: Message[] = [];
+            const logoutMessages: Message[] = [];
+
+            const loginCallback = jest.fn((message: Message) => {
+                loginMessages.push(message);
+            });
+
+            const logoutCallback = jest.fn((message: Message) => {
+                logoutMessages.push(message);
+            });
+
+            // Subscribe to different events
+            channel.subscribe(loginCallback, { event: "user-login" });
+            channel.subscribe(logoutCallback, { event: "user-logout" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Send messages
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "user-login", data: { userId: 1 } },
+                    { event: "user-logout", data: { userId: 2 } },
+                    { event: "user-login", data: { userId: 3 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Each callback should only receive its event
+            expect(loginMessages).toHaveLength(2);
+            expect(logoutMessages).toHaveLength(1);
+            expect(loginCallback).toHaveBeenCalledTimes(2);
+            expect(logoutCallback).toHaveBeenCalledTimes(1);
+        });
+
+        it("should support multiple callbacks for the same event", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // Subscribe multiple callbacks to same event
+            channel.subscribe(callback1, { event: "user-login" });
+            channel.subscribe(callback2, { event: "user-login" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Send message
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [{ event: "user-login", data: { userId: 1 } }],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Both callbacks should be called
+            expect(callback1).toHaveBeenCalledTimes(1);
+            expect(callback2).toHaveBeenCalledTimes(1);
+        });
+
+        it("should unsubscribe specific callback from event", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // Subscribe callbacks
+            channel.subscribe(callback1, { event: "user-login" });
+            channel.subscribe(callback2, { event: "user-login" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Unsubscribe first callback from specific event
+            channel.unsubscribe(callback1, { event: "user-login" });
+
+            // Send message
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [{ event: "user-login", data: { userId: 1 } }],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Only callback2 should be called
+            expect(callback1).not.toHaveBeenCalled();
+            expect(callback2).toHaveBeenCalledTimes(1);
+        });
+
+        it("should unsubscribe all callbacks for specific event", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const loginCallback1 = jest.fn();
+            const loginCallback2 = jest.fn();
+            const logoutCallback = jest.fn();
+
+            // Subscribe callbacks
+            channel.subscribe(loginCallback1, { event: "user-login" });
+            channel.subscribe(loginCallback2, { event: "user-login" });
+            channel.subscribe(logoutCallback, { event: "user-logout" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Unsubscribe all callbacks for user-login (no callback parameter)
+            channel.unsubscribe(undefined, { event: "user-login" });
+
+            // Send messages
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "user-login", data: { userId: 1 } },
+                    { event: "user-logout", data: { userId: 2 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Login callbacks should not be called, logout should
+            expect(loginCallback1).not.toHaveBeenCalled();
+            expect(loginCallback2).not.toHaveBeenCalled();
+            expect(logoutCallback).toHaveBeenCalledTimes(1);
+        });
+
+        it("should unsubscribe from channel when no event callbacks remain", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const loginCallback = jest.fn();
+            const logoutCallback = jest.fn();
+
+            // Subscribe to events
+            channel.subscribe(loginCallback, { event: "user-login" });
+            channel.subscribe(logoutCallback, { event: "user-logout" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Unsubscribe from both events
+            channel.unsubscribe(undefined, { event: "user-login" });
+            channel.unsubscribe(undefined, { event: "user-logout" });
+
+            // Simulate UNSUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.UNSUBSCRIBED,
+                    channel: "test-channel",
+                }),
+            } as MessageEvent);
+
+            // Channel should now be unsubscribed
+            expect(channel.isSubscribed()).toBe(false);
+
+            // Send messages
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [
+                    { event: "user-login", data: { userId: 1 } },
+                    { event: "user-logout", data: { userId: 2 } },
+                ],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // No callbacks should be called
+            expect(loginCallback).not.toHaveBeenCalled();
+            expect(logoutCallback).not.toHaveBeenCalled();
+        });
+
+        it("should clear event callbacks on reset", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const callback = jest.fn();
+
+            // Subscribe to event
+            channel.subscribe(callback, { event: "user-login" });
+
+            // Reset channel
+            channel.reset();
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Re-subscribe and send message
+            channel.subscribe(jest.fn());
+            
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-456",
+                }),
+            } as MessageEvent);
+
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [{ event: "user-login", data: { userId: 1 } }],
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Callback should not be called (was cleared)
+            expect(callback).not.toHaveBeenCalled();
+        });
+
+        it("should not call event-specific callbacks for messages without event property", () => {
+            const { wsClient, mockSocket, logger } = createTestMocks();
+            const channel = new SocketChannel("test-channel", wsClient, logger);
+            channelInstances.push(channel);
+
+            const callback = jest.fn();
+
+            // Subscribe to event
+            channel.subscribe(callback, { event: "user-login" });
+
+            // Get message handler
+            const messageHandler = mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            // Send message without event
+            const dataMessage: IncomingDataMessage = {
+                action: ActionType.MESSAGE,
+                id: "msg-1",
+                timestamp: "2024-01-01T00:00:00Z",
+                channel: "test-channel",
+                messages: [{ data: { userId: 1 } }], // No event property
+            };
+            messageHandler?.({
+                data: JSON.stringify(dataMessage),
+            } as MessageEvent);
+
+            // Callback should not be called
+            expect(callback).not.toHaveBeenCalled();
         });
     });
 });

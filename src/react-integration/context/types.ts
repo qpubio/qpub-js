@@ -20,10 +20,19 @@ export interface UseChannelReturn {
     ready: boolean; // True when both connection and channel are ready
 
     // Core SocketChannel methods
-    subscribe: (callback: (message: Message) => void) => void;
+    subscribe: (
+        callback: (message: Message) => void,
+        options?: { event?: string }
+    ) => void;
     resubscribe: () => Promise<void>;
-    unsubscribe: () => void;
-    publish: (data: any, event?: string, alias?: string) => Promise<void>;
+    unsubscribe: (
+        callback?: (message: Message) => void,
+        options?: { event?: string }
+    ) => void;
+    publish: (
+        data: any,
+        options?: { event?: string; alias?: string }
+    ) => Promise<void>;
     isSubscribed: () => boolean;
     isPendingSubscribe: () => boolean;
     setPendingSubscribe: (pending: boolean) => void;

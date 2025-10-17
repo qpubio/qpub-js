@@ -1,7 +1,13 @@
 import { BaseChannel } from "./channel";
-import { IHttpClient, IAuthManager, IOptionManager, ILogger } from "../../interfaces/services.interface";
+import {
+    IHttpClient,
+    IAuthManager,
+    IOptionManager,
+    ILogger,
+} from "../../interfaces/services.interface";
 import { RestPublishRequest } from "../../interfaces/message.interface";
 import { ChannelEvents } from "../../types/event.type";
+import { PublishOptions } from "../../interfaces/channel.interface";
 
 export class RestChannel extends BaseChannel {
     private httpClient: IHttpClient;
@@ -26,11 +32,10 @@ export class RestChannel extends BaseChannel {
 
     public async publish<T = any>(
         data: any,
-        event?: string,
-        alias?: string
+        options?: PublishOptions
     ): Promise<T> {
         this.logger.debug(
-            `Publishing to REST channel ${this.name}${event ? ` (event: ${event})` : ""}${alias ? ` (alias: ${alias})` : ""}`
+            `Publishing to REST channel ${this.name}${options?.event ? ` (event: ${options.event})` : ""}${options?.alias ? ` (alias: ${options.alias})` : ""}`
         );
 
         try {
@@ -46,8 +51,8 @@ export class RestChannel extends BaseChannel {
             const requestPayload: RestPublishRequest = {
                 messages: [
                     {
-                        alias,
-                        event,
+                        alias: options?.alias,
+                        event: options?.event,
                         data,
                     },
                 ],
@@ -58,20 +63,25 @@ export class RestChannel extends BaseChannel {
                 requestPayload
             );
 
-            const result = await this.httpClient.post<T>(url, requestPayload, headers);
-            
+            const result = await this.httpClient.post<T>(
+                url,
+                requestPayload,
+                headers
+            );
+
             this.logger.info(`Published message to REST channel: ${this.name}`);
-            
+
             return result;
         } catch (error) {
             this.logger.error(
                 `Error publishing to REST channel ${this.name}:`,
                 error
             );
-            this.emit(ChannelEvents.FAILED, { 
-                channelName: this.name, 
-                error: error instanceof Error ? error : new Error("Unknown error"),
-                action: "publish"
+            this.emit(ChannelEvents.FAILED, {
+                channelName: this.name,
+                error:
+                    error instanceof Error ? error : new Error("Unknown error"),
+                action: "publish",
             });
             throw error;
         }

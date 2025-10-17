@@ -125,22 +125,31 @@ export function useChannel(channelName: string): UseChannelReturn {
 
     // Thin wrapper methods that just call the core SDK methods
     const subscribe = React.useCallback(
-        (callback: (message: Message) => void) => {
+        (
+            callback: (message: Message) => void,
+            options?: { event?: string }
+        ) => {
             if (!channel) throw new Error("Channel not available");
-            channel.subscribe(callback);
+            channel.subscribe(callback, options);
         },
         [channel]
     );
 
-    const unsubscribe = React.useCallback(() => {
-        if (!channel) return;
-        channel.unsubscribe();
-    }, [channel]);
+    const unsubscribe = React.useCallback(
+        (
+            callback?: (message: Message) => void,
+            options?: { event?: string }
+        ) => {
+            if (!channel) return;
+            channel.unsubscribe(callback, options);
+        },
+        [channel]
+    );
 
     const publish = React.useCallback(
-        async (data: any, event?: string, alias?: string) => {
+        async (data: any, options?: { event?: string; alias?: string }) => {
             if (!channel) throw new Error("Channel not available");
-            return channel.publish(data, event, alias);
+            return channel.publish(data, options);
         },
         [channel]
     );
