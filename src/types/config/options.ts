@@ -1,4 +1,10 @@
-import { TokenRequest } from "./token.interface";
+/**
+ * Configuration Options
+ * 
+ * SDK configuration options and defaults.
+ */
+
+import { TokenRequest } from "./auth";
 
 export interface AuthOptions {
     headers?: Record<string, string>;
@@ -74,3 +80,4 @@ export const DEFAULT_OPTIONS: Option = {
     debug: false,
     logLevel: "error",
 };
+

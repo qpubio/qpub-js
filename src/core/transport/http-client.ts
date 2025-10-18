@@ -1,4 +1,4 @@
-import { IHttpClient } from "../../interfaces/services.interface";
+import { IHttpClient } from "../../types/services/clients";
 
 export class HttpClient implements IHttpClient {
     private defaultHeaders: HeadersInit;

@@ -1,3 +1,10 @@
+/**
+ * Protocol Actions
+ * 
+ * Action types and helpers that match the backend WebSocket protocol.
+ * These define the communication contract between client and server.
+ */
+
 // Action types enum matching backend protocol
 export enum ActionType {
     // Connection actions
@@ -84,3 +91,4 @@ export type ErrorAction = typeof ErrorActions[number];
 // Combined types for message interfaces
 export type OutgoingAction = ActionType.CONNECT | ActionType.DISCONNECT | ActionType.SUBSCRIBE | ActionType.UNSUBSCRIBE | ActionType.PUBLISH | ActionType.PING;
 export type IncomingAction = ActionType.CONNECTED | ActionType.DISCONNECTED | ActionType.SUBSCRIBED | ActionType.UNSUBSCRIBED | ActionType.PUBLISHED | ActionType.MESSAGE | ActionType.ERROR | ActionType.PING | ActionType.PONG;
+

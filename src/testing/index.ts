@@ -1,15 +1,17 @@
 import { ServiceContainer, registerSocketServices, registerRestServices } from "../core/bootstrap";
-import { Option } from "../interfaces/option.interface";
+import { Option } from "../types/config/options";
 import {
     IOptionManager,
     IAuthManager,
-    IWebSocketClient,
-    IConnection,
     ISocketChannelManager,
+} from "../types/services/managers";
+import {
+    IWebSocketClient,
     IHttpClient,
     ILogger,
     ILoggerFactory,
-} from "../interfaces/services.interface";
+} from "../types/services/clients";
+import { IConnection } from "../types/services/connection";
 
 /**
  * Test-specific service container with enhanced mocking capabilities

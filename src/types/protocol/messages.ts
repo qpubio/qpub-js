@@ -1,8 +1,15 @@
+/**
+ * Protocol Messages
+ * 
+ * Message interfaces for WebSocket and REST communication.
+ * These define the structure of data exchanged between client and server.
+ */
+
 import {
     ActionType,
     OutgoingAction,
     IncomingAction,
-} from "../types/action.type";
+} from "./actions";
 
 //
 // Base message
@@ -150,3 +157,4 @@ export interface RestPublishRequest {
     channels?: string[];
     messages: DataMessagePayload[];
 }
+

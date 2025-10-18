@@ -1,15 +1,17 @@
 import { AuthManager } from '../../src/core/managers/auth-manager';
 import { Connection } from '../../src/core/connections/connection';
 import { SocketChannelManager } from '../../src/core/managers/channel-manager';
-import { AuthEvents, ConnectionEvents } from '../../src/types/event.type';
+import { AuthEvents, ConnectionEvents } from '../../src/types/events/constants';
 import { 
     IOptionManager, 
     IAuthManager,
-    IWebSocketClient, 
     ISocketChannelManager, 
+} from '../../src/types/services/managers';
+import {
+    IWebSocketClient,
     ILogger,
     IHttpClient 
-} from '../../src/interfaces/services.interface';
+} from '../../src/types/services/clients';
 
 describe('Integration: Component Interaction Tests', () => {
     // Simple integration tests to verify components can work together

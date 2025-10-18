@@ -1,9 +1,9 @@
 import React from "react";
 import { SocketChannel } from "../../core/channels/socket-channel";
-import { Option } from "../../interfaces/option.interface";
-import { ConnectionEvent, ChannelEvent } from "../../types/event.type";
-import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";
-import { Message, ConnectionDetails } from "../../interfaces/message.interface";
+import { Option } from "../../types/config/options";
+import { ConnectionEvent, ChannelEvent } from "../../types/events/constants";
+import { AuthResponse, TokenRequest } from "../../types/config/auth";
+import { Message, ConnectionDetails } from "../../types/protocol/messages";
 
 // Re-export core types for convenience
 export type { Message, ConnectionDetails };

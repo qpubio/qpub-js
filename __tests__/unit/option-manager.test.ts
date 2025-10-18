@@ -1,5 +1,5 @@
 import { OptionManager } from '../../src/core/managers/option-manager';
-import { DEFAULT_OPTIONS } from '../../src/interfaces/option.interface';
+import { DEFAULT_OPTIONS } from '../../src/types/config/options';
 
 describe('OptionManager', () => {
     let optionManager: OptionManager;

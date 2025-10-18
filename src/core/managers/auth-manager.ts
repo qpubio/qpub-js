@@ -1,21 +1,23 @@
 import { EventEmitter } from "../shared/event-emitter";
-import { AuthEventPayloads } from "../../types/internal-events";
+import { AuthEventPayloads } from "../../types/events/payloads";
 import {
     IOptionManager,
+    IAuthManager,
+} from "../../types/services/managers";
+import {
     IHttpClient,
     ILogger,
-    IAuthManager,
-} from "../../interfaces/services.interface";
+} from "../../types/services/clients";
 import { JWT } from "../shared/jwt";
-import { JWTPayload } from "../../interfaces/jwt.interface";
+import { JWTPayload } from "../../types/config/auth";
 import {
     AuthResponse,
     TokenOptions,
     TokenRequest,
-} from "../../interfaces/token.interface";
+} from "../../types/config/auth";
 import { Crypto } from "../shared/crypto";
 import { ApiKey } from "../shared/api-key";
-import { AuthEvents } from "../../types/event.type";
+import { AuthEvents } from "../../types/events/constants";
 
 export class AuthManager
     extends EventEmitter<AuthEventPayloads>

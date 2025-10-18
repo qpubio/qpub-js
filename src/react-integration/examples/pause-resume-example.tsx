@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useChannel } from "../hooks/useChannel";
-import { ChannelEvents } from "../../types/event.type";
+import { ChannelEvents } from "../../types/events/constants";
 
 /**
  * Example demonstrating channel pause/resume functionality

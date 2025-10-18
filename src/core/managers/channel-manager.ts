@@ -1,18 +1,20 @@
-import { ChannelManager } from "../../interfaces/channel.interface";
+import { ChannelManager } from "../../types/services/channel";
 import { SocketChannel } from "../channels/socket-channel";
 import { RestChannel } from "../channels/rest-channel";
 import {
     IWebSocketClient,
     ILogger,
-    ISocketChannelManager,
     IHttpClient,
+} from "../../types/services/clients";
+import {
+    ISocketChannelManager,
     IAuthManager,
     IOptionManager,
-} from "../../interfaces/services.interface";
+} from "../../types/services/managers";
 import {
     DataMessagePayload,
     RestPublishRequest,
-} from "../../interfaces/message.interface";
+} from "../../types/protocol/messages";
 
 export class SocketChannelManager
     implements ChannelManager, ISocketChannelManager

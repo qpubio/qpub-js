@@ -1,13 +1,15 @@
 import { Connection } from "../../src/core/connections/connection";
-import { ConnectionEvents, AuthEvents } from "../../src/types/event.type";
-import { ActionType } from "../../src/types/action.type";
+import { ConnectionEvents, AuthEvents } from "../../src/types/events/constants";
+import { ActionType } from "../../src/types/protocol/actions";
 import {
     IOptionManager,
     IAuthManager,
-    IWebSocketClient,
     ISocketChannelManager,
+} from "../../src/types/services/managers";
+import {
+    IWebSocketClient,
     ILogger,
-} from "../../src/interfaces/services.interface";
+} from "../../src/types/services/clients";
 
 describe("Connection", () => {
     // Track Connection instances for cleanup

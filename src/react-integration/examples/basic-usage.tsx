@@ -6,7 +6,7 @@ import {
     useConnection,
     Channel,
 } from "../index";
-import { Message } from "../../interfaces/message.interface";
+import { Message } from "../../types/protocol/messages";
 
 // =============================================================================
 // Example 1: Basic Socket Provider Usage

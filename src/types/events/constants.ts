@@ -1,3 +1,11 @@
+/**
+ * Event Constants
+ * 
+ * Event names used throughout the SDK for the event emitter system.
+ * These are distinct from protocol ActionTypes - they represent internal
+ * state changes and notifications within the SDK.
+ */
+
 export const ConnectionEvents = {
     INITIALIZED: "initialized",
     CONNECTING: "connecting",
@@ -33,3 +41,4 @@ export const AuthEvents = {
 } as const;
 
 export type AuthEvent = typeof AuthEvents[keyof typeof AuthEvents];
+

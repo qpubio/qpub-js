@@ -1,6 +1,6 @@
 import React from "react";
 import { Socket } from "../../core/socket";
-import { Option } from "../../interfaces/option.interface";
+import { Option } from "../../types/config/options";
 import { isClient } from "../utils/ssr";
 
 /**

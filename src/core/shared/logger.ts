@@ -1,4 +1,5 @@
-import { IOptionManager, ILogger } from "../../interfaces/services.interface";
+import { IOptionManager } from "../../types/services/managers";
+import { ILogger } from "../../types/services/clients";
 
 /**
  * High-performance logger with early-exit optimization.

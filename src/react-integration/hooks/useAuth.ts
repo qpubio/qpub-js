@@ -1,9 +1,9 @@
 import React from "react";
-import { AuthEvents } from "../../types/event.type";
+import { AuthEvents } from "../../types/events/constants";
 import { UseAuthReturn } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
-import { AuthResponse, TokenRequest } from "../../interfaces/token.interface";
-import { IAuthManager } from "../../interfaces/services.interface";
+import { AuthResponse, TokenRequest } from "../../types/config/auth";
+import { IAuthManager } from "../../types/services/managers";
 
 /**
  * Hook for managing authentication with Socket interface

@@ -1,8 +1,16 @@
-import { ErrorInfo, ConnectionDetails, Message } from "../interfaces/message.interface";
+/**
+ * Event Payloads
+ * 
+ * Type definitions for event payload data. These define what data is
+ * passed to event listeners for each event type.
+ */
 
-// Internal event payload types for type safety within the library
-// These are NOT exported to consumers
+import { ErrorInfo, ConnectionDetails, Message } from "../protocol/messages";
 
+/**
+ * Connection event payloads
+ * Defines the data structure for each connection event
+ */
 export interface ConnectionEventPayloads {
   [key: string]: any;
   initialized: void;
@@ -15,6 +23,10 @@ export interface ConnectionEventPayloads {
   failed: { error: Error | ErrorInfo; context?: string };
 }
 
+/**
+ * Channel event payloads
+ * Defines the data structure for each channel event
+ */
 export interface ChannelEventPayloads {
   [key: string]: any;
   initialized: { channelName: string };
@@ -28,10 +40,15 @@ export interface ChannelEventPayloads {
   message: Message;
 }
 
+/**
+ * Auth event payloads
+ * Defines the data structure for each authentication event
+ */
 export interface AuthEventPayloads {
   [key: string]: any;
   token_updated: { token: string; expiresAt?: Date };
   token_expired: { expiredAt: Date; token?: string };
   token_error: { error: Error | ErrorInfo; token?: string };
   auth_error: { error: Error | ErrorInfo; context?: string };
-} 
+}
+

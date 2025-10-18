@@ -1,5 +1,5 @@
-import { QPubWebSocket } from "../../interfaces/websocket.interface";
-import { IWebSocketClient, ILogger } from "../../interfaces/services.interface";
+import { QPubWebSocket } from "../../types/services/websocket";
+import { IWebSocketClient, ILogger } from "../../types/services/clients";
 
 export class WebSocketClient implements IWebSocketClient {
     private socket: QPubWebSocket | null = null;

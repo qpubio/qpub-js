@@ -1,5 +1,5 @@
 import { ServiceContainer } from "./container";
-import { Option } from "../../interfaces/option.interface";
+import { Option } from "../../types/config/options";
 
 // Core Service Implementations
 import { OptionManager } from "../managers/option-manager";
@@ -13,14 +13,16 @@ import { Connection } from "../connections/connection";
 // Service Interfaces
 import {
     IOptionManager,
+    IAuthManager,
+    ISocketChannelManager,
+} from "../../types/services/managers";
+import {
     IHttpClient,
     ILogger,
     ILoggerFactory,
-    IAuthManager,
     IWebSocketClient,
-    ISocketChannelManager,
-    IConnection,
-} from "../../interfaces/services.interface";
+} from "../../types/services/clients";
+import { IConnection } from "../../types/services/connection";
 
 /**
  * Logger factory implementation for creating component-specific loggers

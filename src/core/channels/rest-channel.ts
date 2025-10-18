@@ -1,13 +1,15 @@
 import { BaseChannel } from "./channel";
 import {
     IHttpClient,
+    ILogger,
+} from "../../types/services/clients";
+import {
     IAuthManager,
     IOptionManager,
-    ILogger,
-} from "../../interfaces/services.interface";
-import { RestPublishRequest } from "../../interfaces/message.interface";
-import { ChannelEvents } from "../../types/event.type";
-import { PublishOptions } from "../../interfaces/channel.interface";
+} from "../../types/services/managers";
+import { RestPublishRequest } from "../../types/protocol/messages";
+import { ChannelEvents } from "../../types/events/constants";
+import { PublishOptions } from "../../types/services/channel";
 
 export class RestChannel extends BaseChannel {
     private httpClient: IHttpClient;

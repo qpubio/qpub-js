@@ -1,7 +1,7 @@
-import { Channel } from "../../interfaces/channel.interface";
+import { Channel } from "../../types/services/channel";
 import { EventEmitter } from "../shared/event-emitter";
-import { ChannelEventPayloads } from "../../types/internal-events";
-import { ChannelEvents } from "../../types/event.type";
+import { ChannelEventPayloads } from "../../types/events/payloads";
+import { ChannelEvents } from "../../types/events/constants";
 
 export abstract class BaseChannel extends EventEmitter<ChannelEventPayloads> implements Channel {
     public readonly name: string;

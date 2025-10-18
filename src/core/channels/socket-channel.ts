@@ -1,18 +1,18 @@
-import { ActionType } from "../../types/action.type";
+import { ActionType } from "../../types/protocol/actions";
 import { BaseChannel } from "./channel";
-import { IWebSocketClient, ILogger } from "../../interfaces/services.interface";
-import { ChannelEvents } from "../../types/event.type";
+import { IWebSocketClient, ILogger } from "../../types/services/clients";
+import { ChannelEvents } from "../../types/events/constants";
 import {
     OutgoingChannelMessage,
     DataMessagePayload,
     IncomingDataMessage,
     OutgoingDataMessage,
     Message,
-} from "../../interfaces/message.interface";
+} from "../../types/protocol/messages";
 import {
     PublishOptions,
     SubscribeOptions,
-} from "../../interfaces/channel.interface";
+} from "../../types/services/channel";
 
 // Operation types for the queue
 interface SubscribeOperation {

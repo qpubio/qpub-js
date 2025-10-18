@@ -2,22 +2,24 @@ import { Rest } from "./core/rest";
 import { Socket } from "./core/socket";
 
 // Re-export core types for convenience
-export type { Message } from "./interfaces/message.interface";
-export type { Option } from "./interfaces/option.interface";
-export type { TokenOptions, TokenRequest, AuthResponse } from "./interfaces/token.interface";
+export type { Message } from "./types/protocol/messages";
+export type { Option } from "./types/config/options";
+export type { TokenOptions, TokenRequest, AuthResponse } from "./types/config/auth";
 
 // Re-export service interfaces for advanced usage and testing
 export type {
     IOptionManager,
     IAuthManager,
-    IWebSocketClient,
-    IConnection,
     IChannelManager,
     ISocketChannelManager,
+} from "./types/services/managers";
+export type {
+    IWebSocketClient,
     IHttpClient,
     ILogger,
     ILoggerFactory,
-} from "./interfaces/services.interface";
+} from "./types/services/clients";
+export type { IConnection } from "./types/services/connection";
 
 // Re-export dependency injection utilities for advanced usage
 export {
@@ -43,15 +45,21 @@ export {
     ConnectionEvents, 
     ChannelEvents, 
     AuthEvents 
-} from "./types/consumer-events";
+} from "./types/events/constants";
 
 export type { 
     ConnectionEvent,
     ChannelEvent, 
     AuthEvent,
+} from "./types/events/constants";
+
+export type {
     ConnectionEventPayloads,
     ChannelEventPayloads,
     AuthEventPayloads,
+} from "./types/events/payloads";
+
+export type {
     EventListener,
     ConnectionEventListener,
     ChannelEventListener, 
@@ -59,7 +67,7 @@ export type {
     ConnectionEventListeners,
     ChannelEventListeners,
     AuthEventListeners
-} from "./types/consumer-events";
+} from "./types/events/listeners";
 
 export const QPub = {
     Rest: Rest,

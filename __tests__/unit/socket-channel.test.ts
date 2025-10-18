@@ -1,14 +1,14 @@
 import { SocketChannel } from "../../src/core/channels/socket-channel";
-import { ChannelEvents } from "../../src/types/event.type";
-import { ActionType } from "../../src/types/action.type";
+import { ChannelEvents } from "../../src/types/events/constants";
+import { ActionType } from "../../src/types/protocol/actions";
 import {
     IWebSocketClient,
     ILogger,
-} from "../../src/interfaces/services.interface";
+} from "../../src/types/services/clients";
 import {
     Message,
     IncomingDataMessage,
-} from "../../src/interfaces/message.interface";
+} from "../../src/types/protocol/messages";
 
 describe("SocketChannel", () => {
     // Track instances for cleanup

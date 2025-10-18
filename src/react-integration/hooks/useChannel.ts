@@ -5,10 +5,10 @@ import {
     ChannelEvent,
     ConnectionEvents,
     ConnectionEvent,
-} from "../../types/event.type";
+} from "../../types/events/constants";
 import { UseChannelReturn } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
-import { Message } from "../../interfaces/message.interface";
+import { Message } from "../../types/protocol/messages";
 
 /**
  * React hook that provides a thin wrapper around the core SocketChannel.

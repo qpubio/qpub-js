@@ -1,12 +1,14 @@
-import { Option } from "../interfaces/option.interface";
+import { Option } from "../types/config/options";
 import { ServiceContainer, bootstrapContainer } from "./bootstrap";
 import { uuidv7 } from "./shared";
 import { RestChannelManager } from "./managers/channel-manager";
 import {
     IOptionManager,
+} from "../types/services/managers";
+import {
     ILogger,
     ILoggerFactory,
-} from "../interfaces/services.interface";
+} from "../types/services/clients";
 
 export class Rest {
     private instanceId: string;

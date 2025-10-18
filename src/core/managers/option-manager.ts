@@ -1,5 +1,5 @@
-import { DEFAULT_OPTIONS, Option } from "../../interfaces/option.interface";
-import { IOptionManager } from "../../interfaces/services.interface";
+import { DEFAULT_OPTIONS, Option } from "../../types/config/options";
+import { IOptionManager } from "../../types/services/managers";
 
 export class OptionManager implements IOptionManager {
     private options: Option;

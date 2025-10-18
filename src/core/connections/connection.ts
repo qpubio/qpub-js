@@ -1,21 +1,23 @@
-import { AuthEvents, ConnectionEvents } from "../../types/event.type";
+import { AuthEvents, ConnectionEvents } from "../../types/events/constants";
 import { EventEmitter } from "../shared/event-emitter";
-import { ConnectionEventPayloads } from "../../types/internal-events";
-import { QPubWebSocket } from "../../interfaces/websocket.interface";
+import { ConnectionEventPayloads } from "../../types/events/payloads";
+import { QPubWebSocket } from "../../types/services/websocket";
 import {
     IncomingConnectionMessage,
     IncomingMessage, PingMessage,
     PongMessage
-} from "../../interfaces/message.interface";
-import { ActionType } from "../../types/action.type";
+} from "../../types/protocol/messages";
+import { ActionType } from "../../types/protocol/actions";
 import {
     IOptionManager,
     IAuthManager,
-    IWebSocketClient,
     ISocketChannelManager,
+} from "../../types/services/managers";
+import {
+    IWebSocketClient,
     ILogger,
-    IConnection,
-} from "../../interfaces/services.interface";
+} from "../../types/services/clients";
+import { IConnection } from "../../types/services/connection";
 
 export class Connection
     extends EventEmitter<ConnectionEventPayloads>

@@ -1,5 +1,5 @@
 import React from "react";
-import { ConnectionEvents, ConnectionEvent } from "../../types/event.type";
+import { ConnectionEvents, ConnectionEvent } from "../../types/events/constants";
 import { UseConnectionReturn, ConnectionDetails } from "../context/types";
 import { useSocketContext } from "../context/SocketContext";
 

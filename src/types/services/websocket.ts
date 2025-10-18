@@ -1,3 +1,9 @@
+/**
+ * WebSocket Interface
+ * 
+ * Platform-agnostic WebSocket interface that works across browsers and Node.js.
+ */
+
 export interface QPubWebSocket {
     onopen: ((event: any) => void) | null;
     onclose: ((event: any) => void) | null;
@@ -11,3 +17,4 @@ export interface QPubWebSocket {
     addEventListener(event: string, listener: (event: any) => void): void;
     removeEventListener(event: string, listener: (event: any) => void): void;
 }
+
