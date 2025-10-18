@@ -90,13 +90,17 @@ export class SocketChannel extends BaseChannel {
             return;
         }
 
+        this.logger.debug(
+            `Setting up message handler for channel: ${this.name}`
+        );
+
         // Remove if already attached (idempotent)
         socket.removeEventListener("message", this.messageHandler);
 
         // Attach the handler
         socket.addEventListener("message", this.messageHandler);
         this.logger.debug(
-            `Message handler setup complete for channel: ${this.name}`
+            `Message handler attached to socket for channel: ${this.name}`
         );
     }
 
@@ -200,6 +204,9 @@ export class SocketChannel extends BaseChannel {
                 break;
 
             case ActionType.SUBSCRIBED:
+                this.logger.debug(
+                    `Received SUBSCRIBED confirmation for channel: ${this.name}`
+                );
                 this.subscribed = true;
                 this.pendingSubscribe = false;
                 this.logger.info(
@@ -210,10 +217,16 @@ export class SocketChannel extends BaseChannel {
                     subscriptionId: message.subscription_id || "",
                 });
                 // Process any queued operations now that subscribe completed
+                this.logger.debug(
+                    `Processing operation queue after subscription (${this.operationQueue.length} operations queued)`
+                );
                 this.processOperationQueue();
                 break;
 
             case ActionType.UNSUBSCRIBED:
+                this.logger.debug(
+                    `Received UNSUBSCRIBED confirmation for channel: ${this.name}`
+                );
                 this.subscribed = false;
                 this.pendingSubscribe = false;
                 this.pendingUnsubscribe = false;
@@ -227,6 +240,9 @@ export class SocketChannel extends BaseChannel {
                     subscriptionId: message.subscription_id,
                 });
                 // Process any queued operations now that unsubscribe completed
+                this.logger.debug(
+                    `Processing operation queue after unsubscription (${this.operationQueue.length} operations queued)`
+                );
                 this.processOperationQueue();
                 break;
 
@@ -475,6 +491,9 @@ export class SocketChannel extends BaseChannel {
 
             // If not already subscribed to channel, subscribe with master callback
             if (!this.isSubscribed() && !this.pendingSubscribe) {
+                this.logger.debug(
+                    `Channel ${this.name} not subscribed - setting up event-driven subscription`
+                );
                 this.setupMessageHandler();
                 this.logger.info(
                     `Subscribing to channel: ${this.name} (event-driven mode)`
@@ -484,12 +503,18 @@ export class SocketChannel extends BaseChannel {
                 });
 
                 // Master callback distributes to event-specific callbacks
+                this.logger.debug(
+                    `Creating master callback for event routing on channel: ${this.name}`
+                );
                 this.messageCallback = (message: Message) => {
                     if (message.event) {
                         const eventCallbacks = this.eventCallbacks.get(
                             message.event
                         );
                         if (eventCallbacks) {
+                            this.logger.trace(
+                                `Routing message to ${eventCallbacks.size} callback(s) for event "${message.event}" on channel: ${this.name}`
+                            );
                             eventCallbacks.forEach((cb) => cb(message));
                         }
                     }
@@ -505,6 +530,10 @@ export class SocketChannel extends BaseChannel {
                     actionMessage
                 );
                 this.wsClient.send(JSON.stringify(actionMessage));
+            } else {
+                this.logger.debug(
+                    `Channel ${this.name} already subscribed or subscribing - event callback added without new subscription`
+                );
             }
             return;
         }
@@ -522,6 +551,9 @@ export class SocketChannel extends BaseChannel {
         }
 
         // Ensure handler is attached to WebSocket (idempotent operation)
+        this.logger.debug(
+            `Setting up catch-all subscription for channel: ${this.name}`
+        );
         this.setupMessageHandler();
 
         this.logger.info(
@@ -539,6 +571,9 @@ export class SocketChannel extends BaseChannel {
             action: ActionType.SUBSCRIBE,
             channel: this.name,
         };
+        this.logger.debug(
+            `Sending subscribe request to server for channel: ${this.name}`
+        );
         this.logger.trace(
             `Sending subscribe message for channel ${this.name}:`,
             actionMessage
@@ -815,6 +850,9 @@ export class SocketChannel extends BaseChannel {
                 );
                 // Continue to full unsubscribe logic below
             } else {
+                this.logger.debug(
+                    `Still have ${this.eventCallbacks.size} event(s) with callbacks - keeping channel subscription`
+                );
                 return; // Still have event callbacks, don't unsubscribe from channel
             }
         }
@@ -833,7 +871,7 @@ export class SocketChannel extends BaseChannel {
 
         // If WebSocket is not connected, don't send unsubscribe but keep callback for auto-resubscribe
         if (!this.wsClient.isConnected()) {
-            this.logger.debug(
+            this.logger.warn(
                 `WebSocket not connected - clearing subscription flag but keeping callback for auto-resubscribe`
             );
             this.subscribed = false;
@@ -854,6 +892,9 @@ export class SocketChannel extends BaseChannel {
             action: ActionType.UNSUBSCRIBE,
             channel: this.name,
         };
+        this.logger.debug(
+            `Sending unsubscribe request to server for channel: ${this.name}`
+        );
         this.logger.trace(
             `Sending unsubscribe message for channel ${this.name}:`,
             actionMessage
