@@ -157,14 +157,14 @@ describe("SocketChannel", () => {
             expect(channel.isSubscribed()).toBe(true);
         });
 
-        it("should throw error when subscribing without connection", () => {
+        it("should throw error when subscribing without connection", async () => {
             const mocks = createTestMocks();
             mocks.wsClient.isConnected.mockReturnValue(false);
             const channel = createChannel("test-channel", mocks);
 
-            expect(() => {
-                channel.subscribe(() => {});
-            }).toThrow("Cannot subscribe: WebSocket is not connected");
+            await expect(
+                channel.subscribe(() => {})
+            ).rejects.toThrow("Cannot subscribe: WebSocket is not connected");
 
             expect(channel.isPendingSubscribe()).toBe(true);
         });
@@ -524,6 +524,7 @@ describe("SocketChannel", () => {
         it("should resubscribe when pending and callback exists", async () => {
             const mocks = createTestMocks();
             const channel = createChannel("test-channel", mocks);
+            channelInstances.push(channel);
 
             const callback = jest.fn();
 
@@ -539,7 +540,24 @@ describe("SocketChannel", () => {
             // Now connection is available
             mocks.wsClient.isConnected.mockReturnValue(true);
 
-            await channel.resubscribe();
+            // Start resubscribe and simulate server response
+            const resubscribePromise = channel.resubscribe();
+            
+            // Get message handler
+            const messageHandler = mocks.mockSocket.addEventListener.mock.calls.find(
+                (call) => call[0] === "message"
+            )?.[1] as (event: MessageEvent) => void;
+
+            // Simulate SUBSCRIBED confirmation
+            messageHandler?.({
+                data: JSON.stringify({
+                    action: ActionType.SUBSCRIBED,
+                    channel: "test-channel",
+                    subscription_id: "sub-123",
+                }),
+            } as MessageEvent);
+
+            await resubscribePromise;
 
             expect(mocks.wsClient.send).toHaveBeenCalledWith(
                 JSON.stringify({
@@ -1318,31 +1336,43 @@ describe("SocketChannel", () => {
             // Subscribe with event option
             channel.subscribe(callback, { event: "my-event" });
 
-            // Clear the send mock to check resubscribe call
-            wsClient.send.mockClear();
-
-            // Trigger resubscribe
-            await channel.resubscribe();
-
-            // Should have sent SUBSCRIBE message (action: 4)
-            expect(wsClient.send).toHaveBeenCalledWith(
-                expect.stringContaining('"action":4')
-            );
-
-            // Now verify the event-specific subscription is still active
+            // Simulate SUBSCRIBED confirmation for initial subscription
             const messageHandler = mockSocket.addEventListener.mock.calls.find(
                 (call) => call[0] === "message"
             )?.[1] as (event: MessageEvent) => void;
 
-            // Simulate SUBSCRIBED confirmation
-            const subscribedMessage = {
+            const initialSubscribedMessage = {
+                action: ActionType.SUBSCRIBED,
+                channel: "test-channel",
+                subscription_id: "sub-123",
+            };
+            messageHandler?.({
+                data: JSON.stringify(initialSubscribedMessage),
+            } as MessageEvent);
+
+            // Clear the send mock to check resubscribe call
+            wsClient.send.mockClear();
+
+            // Trigger resubscribe and immediately simulate SUBSCRIBED response
+            const resubscribePromise = channel.resubscribe();
+            
+            // Simulate SUBSCRIBED confirmation for resubscribe
+            const resubscribedMessage = {
                 action: ActionType.SUBSCRIBED,
                 channel: "test-channel",
                 subscription_id: "sub-456",
             };
             messageHandler?.({
-                data: JSON.stringify(subscribedMessage),
+                data: JSON.stringify(resubscribedMessage),
             } as MessageEvent);
+
+            // Wait for resubscribe to complete
+            await resubscribePromise;
+
+            // Should have sent SUBSCRIBE message (action: 4)
+            expect(wsClient.send).toHaveBeenCalledWith(
+                expect.stringContaining('"action":4')
+            );
 
             // Send messages with different events
             const dataMessage: IncomingDataMessage = {

@@ -81,6 +81,42 @@ channel.unsubscribe(undefined, { event: "user-login" });
 channel.unsubscribe();
 ```
 
+### Async Usage (Optional)
+
+Both `subscribe()` and `unsubscribe()` return Promises, so you can use them with or without `await`:
+
+```typescript
+// Fire-and-forget (no await) - just like before
+channel.subscribe((message) => {
+    console.log("Received:", message);
+});
+
+// Wait for subscription confirmation (with await)
+await channel.subscribe((message) => {
+    console.log("Received:", message);
+});
+console.log("Subscription confirmed!");
+
+// Same for unsubscribe
+await channel.unsubscribe();
+console.log("Unsubscribed!");
+
+// Custom timeout (default is 10 seconds)
+try {
+    await channel.subscribe(
+        (message) => console.log(message),
+        { event: "user-login", timeout: 5000 }
+    );
+} catch (error) {
+    console.error("Subscription failed or timed out:", error);
+}
+```
+
+The async methods are useful when you need:
+- Confirmation before proceeding with other operations
+- Error handling with try/catch instead of event listeners
+- Sequential subscription setup in async functions
+
 ## How It Works
 
 ### Message Routing

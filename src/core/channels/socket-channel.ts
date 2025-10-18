@@ -43,6 +43,7 @@ export class SocketChannel extends BaseChannel {
     private messageHandler: (event: MessageEvent) => void;
     private eventCallbacks: Map<string, Set<(message: Message) => void>> =
         new Map();
+    private pendingTimeouts: Set<NodeJS.Timeout> = new Set();
 
     constructor(name: string, wsClient: IWebSocketClient, logger: ILogger) {
         super(name);
@@ -248,6 +249,11 @@ export class SocketChannel extends BaseChannel {
         }
     }
 
+    /**
+     * Publish a message to the channel.
+     * Note: This is a fire-and-forget operation - no server acknowledgment is expected.
+     * The Promise resolves immediately after sending, not after delivery confirmation.
+     */
     public async publish(data: any, options?: PublishOptions): Promise<void> {
         this.logger.debug(
             `Publishing to channel ${this.name}${options?.event ? ` (event: ${options.event})` : ""}${options?.alias ? ` (alias: ${options.alias})` : ""}`
@@ -299,12 +305,17 @@ export class SocketChannel extends BaseChannel {
     }
 
     /**
-     * Public subscribe method that handles queueing if operations are in-flight.
+     * Subscribe to channel messages. Returns a Promise that resolves when subscription is confirmed.
+     * Can be used with or without await:
+     * - Fire-and-forget: channel.subscribe(callback)
+     * - Wait for confirmation: await channel.subscribe(callback)
      */
-    public subscribe(
+    public async subscribe(
         callback: (message: Message) => void,
-        options?: SubscribeOptions
-    ): void {
+        options?: SubscribeOptions & { timeout?: number }
+    ): Promise<void> {
+        const timeout = options?.timeout || 10000; // Default 10s timeout
+
         this.logger.debug(
             `Subscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event}, pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
         );
@@ -321,6 +332,10 @@ export class SocketChannel extends BaseChannel {
             throw error;
         }
 
+        // Determine if we need to wait for network confirmation
+        let needsNetworkConfirmation = false;
+        let willQueue = false;
+
         // Special handling for event-specific subscriptions:
         // They can proceed if the channel is already subscribed or subscribing
         // (unless an unsubscribe is pending)
@@ -336,12 +351,16 @@ export class SocketChannel extends BaseChannel {
                     callback,
                     options,
                 });
-                return;
+                willQueue = true;
+                needsNetworkConfirmation = true;
             }
             // Channel is already subscribed or subscribing, just add the event callback
-            if (this.isSubscribed() || this.pendingSubscribe) {
+            else if (this.isSubscribed() || this.pendingSubscribe) {
                 this.executeSubscribe(callback, options);
-                return;
+                return Promise.resolve();
+            } else {
+                // Need to subscribe to channel
+                needsNetworkConfirmation = true;
             }
         } else {
             // Catch-all subscription - must wait for any pending operations
@@ -354,16 +373,80 @@ export class SocketChannel extends BaseChannel {
                     callback,
                     options,
                 });
-                return;
+                willQueue = true;
+                needsNetworkConfirmation = true;
+            } else if (this.isSubscribed()) {
+                // Just updating callback, no network call
+                this.executeSubscribe(callback, options);
+                return Promise.resolve();
+            } else {
+                // Need to subscribe to channel
+                needsNetworkConfirmation = true;
             }
         }
 
-        // No pending operations, execute immediately
-        this.executeSubscribe(callback, options);
+        if (!needsNetworkConfirmation) {
+            // Can execute immediately without waiting
+            this.executeSubscribe(callback, options);
+            return Promise.resolve();
+        }
+
+        // Need to wait for network confirmation
+        return new Promise<void>((resolve, reject) => {
+            const handleSubscribed = () => {
+                cleanup();
+                this.logger.debug(
+                    `Subscribe resolved for channel: ${this.name}`
+                );
+                resolve();
+            };
+
+            const handleFailed = (event: any) => {
+                cleanup();
+                this.logger.error(
+                    `Subscribe rejected for channel: ${this.name}`,
+                    event.error
+                );
+                reject(event.error);
+            };
+
+            const timeoutId = setTimeout(() => {
+                cleanup();
+                const error = new Error(
+                    `Subscription timeout after ${timeout}ms for channel: ${this.name}`
+                );
+                this.logger.error(error.message);
+                reject(error);
+            }, timeout);
+
+            // Track the timeout so it can be cleaned up
+            this.pendingTimeouts.add(timeoutId);
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                this.pendingTimeouts.delete(timeoutId);
+                this.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                this.off(ChannelEvents.FAILED, handleFailed);
+            };
+
+            this.once(ChannelEvents.SUBSCRIBED, handleSubscribed);
+            this.once(ChannelEvents.FAILED, handleFailed);
+
+            try {
+                // If not queued, execute immediately
+                if (!willQueue) {
+                    this.executeSubscribe(callback, options);
+                }
+                // If queued, the operation will execute when processOperationQueue is called
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        });
     }
 
     /**
-     * Internal method that actually executes the subscribe operation.
+     * Internal method that synchronously executes the subscribe operation.
      * This is called either immediately or after processing the queue.
      */
     private executeSubscribe(
@@ -482,11 +565,13 @@ export class SocketChannel extends BaseChannel {
             const existingCallback = this.messageCallback;
             const existingEventCallbacks = new Map(this.eventCallbacks);
 
-            // Clear pending flags before resubscribing (important for reconnection scenarios)
+            // Clear subscription state before resubscribing (important for reconnection scenarios)
+            // This ensures executeSubscribe will send a new SUBSCRIBE message
+            this.subscribed = false;
             this.pendingSubscribe = false;
             this.pendingUnsubscribe = false;
 
-            // If we have event-specific callbacks, resubscribe to each
+            // If we have event-specific callbacks, resubscribe to each and wait for confirmation
             if (existingEventCallbacks.size > 0) {
                 Array.from(existingEventCallbacks.entries()).forEach(
                     ([event, callbacks]) => {
@@ -496,10 +581,39 @@ export class SocketChannel extends BaseChannel {
                         });
                     }
                 );
+                // Wait for the subscription to be confirmed (only one SUBSCRIBED event will fire)
+                await new Promise<void>((resolve, reject) => {
+                    const handleSubscribed = () => {
+                        this.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                        this.off(ChannelEvents.FAILED, handleFailed);
+                        resolve();
+                    };
+                    const handleFailed = (event: any) => {
+                        this.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                        this.off(ChannelEvents.FAILED, handleFailed);
+                        reject(event.error);
+                    };
+                    this.once(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                    this.once(ChannelEvents.FAILED, handleFailed);
+                });
             } else if (existingCallback) {
-                // Otherwise, resubscribe with the catch-all callback
-                // Use executeSubscribe directly to bypass queueing
+                // Otherwise, resubscribe with the catch-all callback and wait
                 this.executeSubscribe(existingCallback);
+                // Wait for subscription confirmation
+                await new Promise<void>((resolve, reject) => {
+                    const handleSubscribed = () => {
+                        this.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                        this.off(ChannelEvents.FAILED, handleFailed);
+                        resolve();
+                    };
+                    const handleFailed = (event: any) => {
+                        this.off(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                        this.off(ChannelEvents.FAILED, handleFailed);
+                        reject(event.error);
+                    };
+                    this.once(ChannelEvents.SUBSCRIBED, handleSubscribed);
+                    this.once(ChannelEvents.FAILED, handleFailed);
+                });
             }
         } catch (error) {
             this.logger.error(
@@ -517,15 +631,24 @@ export class SocketChannel extends BaseChannel {
     }
 
     /**
-     * Public unsubscribe method that handles queueing if operations are in-flight.
+     * Unsubscribe from channel. Returns a Promise that resolves when unsubscription is confirmed.
+     * Can be used with or without await:
+     * - Fire-and-forget: channel.unsubscribe()
+     * - Wait for confirmation: await channel.unsubscribe()
      */
-    public unsubscribe(
+    public async unsubscribe(
         callback?: (message: Message) => void,
-        options?: SubscribeOptions
-    ): void {
+        options?: SubscribeOptions & { timeout?: number }
+    ): Promise<void> {
+        const timeout = options?.timeout || 10000; // Default 10s timeout
+
         this.logger.debug(
             `Unsubscribe requested for channel: ${this.name} (subscribed: ${this.subscribed}, event: ${options?.event}, pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
         );
+
+        // Determine if we need to wait for network confirmation
+        let needsNetworkConfirmation = false;
+        let willQueue = false;
 
         // Special handling for event-specific unsubscriptions:
         // They can proceed if the channel is subscribed because they just
@@ -533,23 +656,44 @@ export class SocketChannel extends BaseChannel {
         if (options?.event) {
             if (this.isSubscribed() && !this.pendingUnsubscribe) {
                 // Channel is subscribed and stable, can remove event callback immediately
-                this.executeUnsubscribe(callback, options);
-                return;
-            }
-            // Otherwise queue it
-            if (this.pendingSubscribe || this.pendingUnsubscribe) {
-                this.logger.info(
-                    `Queueing event unsubscribe operation for channel ${this.name} (pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
-                );
-                this.operationQueue.push({
-                    type: "unsubscribe",
-                    callback,
-                    options,
-                });
-                return;
+                // Check if this will trigger full unsubscribe
+                const callbacks = this.eventCallbacks.get(options.event);
+                if (callbacks) {
+                    const willBeEmpty = callback
+                        ? callbacks.size === 1 && callbacks.has(callback)
+                        : true;
+                    const isLastEvent = this.eventCallbacks.size === 1;
+                    needsNetworkConfirmation = willBeEmpty && isLastEvent;
+                }
+
+                if (!needsNetworkConfirmation) {
+                    this.executeUnsubscribe(callback, options);
+                    return Promise.resolve();
+                }
+            } else {
+                // Otherwise queue it
+                if (this.pendingSubscribe || this.pendingUnsubscribe) {
+                    this.logger.info(
+                        `Queueing event unsubscribe operation for channel ${this.name} (pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
+                    );
+                    this.operationQueue.push({
+                        type: "unsubscribe",
+                        callback,
+                        options,
+                    });
+                    willQueue = true;
+                    needsNetworkConfirmation = true;
+                } else {
+                    needsNetworkConfirmation = true;
+                }
             }
         } else {
-            // Full channel unsubscribe - must wait for any pending operations
+            // Full channel unsubscribe
+            if (!this.isSubscribed() && !this.pendingSubscribe) {
+                // Not subscribed, resolve immediately
+                return Promise.resolve();
+            }
+
             if (this.pendingSubscribe || this.pendingUnsubscribe) {
                 this.logger.info(
                     `Queueing unsubscribe operation for channel ${this.name} (pendingSubscribe: ${this.pendingSubscribe}, pendingUnsubscribe: ${this.pendingUnsubscribe})`
@@ -559,16 +703,74 @@ export class SocketChannel extends BaseChannel {
                     callback,
                     options,
                 });
-                return;
+                willQueue = true;
+                needsNetworkConfirmation = true;
+            } else {
+                needsNetworkConfirmation = true;
             }
         }
 
-        // No pending operations, execute immediately
-        this.executeUnsubscribe(callback, options);
+        if (!needsNetworkConfirmation) {
+            this.executeUnsubscribe(callback, options);
+            return Promise.resolve();
+        }
+
+        // Need to wait for network confirmation
+        return new Promise<void>((resolve, reject) => {
+            const handleUnsubscribed = () => {
+                cleanup();
+                this.logger.debug(
+                    `Unsubscribe resolved for channel: ${this.name}`
+                );
+                resolve();
+            };
+
+            const handleFailed = (event: any) => {
+                cleanup();
+                this.logger.error(
+                    `Unsubscribe rejected for channel: ${this.name}`,
+                    event.error
+                );
+                reject(event.error);
+            };
+
+            const timeoutId = setTimeout(() => {
+                cleanup();
+                const error = new Error(
+                    `Unsubscription timeout after ${timeout}ms for channel: ${this.name}`
+                );
+                this.logger.error(error.message);
+                reject(error);
+            }, timeout);
+
+            // Track the timeout so it can be cleaned up
+            this.pendingTimeouts.add(timeoutId);
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                this.pendingTimeouts.delete(timeoutId);
+                this.off(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
+                this.off(ChannelEvents.FAILED, handleFailed);
+            };
+
+            this.once(ChannelEvents.UNSUBSCRIBED, handleUnsubscribed);
+            this.once(ChannelEvents.FAILED, handleFailed);
+
+            try {
+                // If not queued, execute immediately
+                if (!willQueue) {
+                    this.executeUnsubscribe(callback, options);
+                }
+                // If queued, the operation will execute when processOperationQueue is called
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        });
     }
 
     /**
-     * Internal method that actually executes the unsubscribe operation.
+     * Internal method that synchronously executes the unsubscribe operation.
      * This is called either immediately or after processing the queue.
      */
     private executeUnsubscribe(
@@ -777,6 +979,13 @@ export class SocketChannel extends BaseChannel {
 
         // Reset local state regardless of unsubscribe success
         this.logger.debug(`Clearing local state for channel: ${this.name}`);
+
+        // Clear all pending timeouts to prevent memory leaks and hanging promises
+        this.pendingTimeouts.forEach((timeoutId) => {
+            clearTimeout(timeoutId);
+        });
+        this.pendingTimeouts.clear();
+
         this.subscribed = false;
         this.messageCallback = undefined;
         this.eventCallbacks.clear();

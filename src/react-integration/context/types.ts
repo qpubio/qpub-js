@@ -22,13 +22,13 @@ export interface UseChannelReturn {
     // Core SocketChannel methods
     subscribe: (
         callback: (message: Message) => void,
-        options?: { event?: string }
-    ) => void;
+        options?: { event?: string; timeout?: number }
+    ) => Promise<void>;
     resubscribe: () => Promise<void>;
     unsubscribe: (
         callback?: (message: Message) => void,
-        options?: { event?: string }
-    ) => void;
+        options?: { event?: string; timeout?: number }
+    ) => Promise<void>;
     publish: (
         data: any,
         options?: { event?: string; alias?: string }

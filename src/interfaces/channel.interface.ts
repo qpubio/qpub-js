@@ -3,12 +3,12 @@ export interface Channel {
     publish: (message: any, options?: PublishOptions) => Promise<void>;
     subscribe?(
         callback: (message: any) => void,
-        options?: SubscribeOptions
-    ): void;
+        options?: SubscribeOptions & { timeout?: number }
+    ): Promise<void>;
     unsubscribe?(
         callback?: (message: any) => void,
-        options?: SubscribeOptions
-    ): void;
+        options?: SubscribeOptions & { timeout?: number }
+    ): Promise<void>;
     pause?(options?: { bufferMessages?: boolean }): void;
     resume?(): void;
     isPaused?(): boolean;
