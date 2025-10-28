@@ -19,7 +19,7 @@ QPub React integration offers two approaches for channel subscriptions:
 
 ```tsx
 import React, { useState, useCallback, useEffect } from "react";
-import { SocketProvider, useChannel, Message } from "qpub/react";
+import { SocketProvider, useChannel, Message } from "@qpub/sdk/react";
 
 function App() {
     return (
@@ -100,7 +100,7 @@ function AdvancedChatRoom() {
 ### 3. Authentication & Connection Details
 
 ```tsx
-import { useAuth, useConnection } from "qpub/react";
+import { useAuth, useConnection } from "@qpub/sdk/react";
 
 function AuthenticatedChat() {
     const { isAuthenticated, authenticate, error } = useAuth();
@@ -143,7 +143,7 @@ function AuthenticatedChat() {
 ### 3. Channel Component Pattern
 
 ```tsx
-import { Channel } from "qpub/react";
+import { Channel } from "@qpub/sdk/react";
 
 function App() {
     return (
@@ -338,7 +338,7 @@ import {
     SocketProviderProps,
     Message,
     ConnectionDetails,
-} from "qpub/react";
+} from "@qpub/sdk/react";
 
 // Type-safe usage
 const { ready, publish } = useChannel("chat", {
