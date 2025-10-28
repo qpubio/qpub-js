@@ -1,7 +1,7 @@
 {
-    "name": "qpub",
+    "name": "@qpub/sdk",
     "version": "2.0.0",
-    "description": "QPub JavaScript: A client library for real-time messaging on browsers, Node.js, and other platforms",
+    "description": "Real-time client for QPub cloud pub/sub service. Supports browsers, Node.js, Bun, and React.",
     "main": "build/qpub.cjs.js",
     "module": "build/qpub.esm.js",
     "browser": "build/qpub.umd.js",
@@ -36,7 +36,6 @@
         "react",
         "hooks"
     ],
-    "author": "QPub",
     "license": "MIT",
     "bugs": {
         "url": "https://github.com/qpubio/qpub-js/issues"
