@@ -11,7 +11,7 @@ import {
     ConnectionEventPayloads,
     ConnectionEventListener,
     EventListener,
-} from "qpub";
+} from "@qpub/sdk";
 ```
 
 ## What You Get
@@ -228,7 +228,7 @@ import {
     AuthEvents,
     AuthEventPayloads,
     AuthEventListener,
-} from "qpub";
+} from "@qpub/sdk";
 
 // Channel events
 const handleChannelSubscribed: ChannelEventListener<"subscribed"> = (

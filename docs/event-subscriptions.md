@@ -15,7 +15,7 @@ This provides a flexible, unified API for handling messages on channels.
 ### Subscribe to All Messages
 
 ```typescript
-import { QPub } from "qpub";
+import { QPub } from "@qpub/sdk";
 
 const socket = new QPub.Socket({ apiKey: "YOUR_API_KEY" });
 const channel = socket.channels.get("my-channel");
@@ -30,7 +30,7 @@ channel.subscribe((message) => {
 ### Subscribe to Specific Events
 
 ```typescript
-import { QPub } from "qpub";
+import { QPub } from "@qpub/sdk";
 
 const socket = new QPub.Socket({ apiKey: "YOUR_API_KEY" });
 const channel = socket.channels.get("my-channel");

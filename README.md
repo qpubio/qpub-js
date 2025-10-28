@@ -15,25 +15,25 @@ Use any package manager like npm or yarn to install the JavaScript SDK.
 Npm:
 
 ```bash
-npm i qpub
+npm i @qpub/sdk
 ```
 
 Yarn:
 
 ```bash
-yarn add qpub
+yarn add @qpub/sdk
 ```
 
 Import as ES module:
 
 ```js
-import { QPub, Message } from "qpub";
+import { QPub, Message } from "@qpub/sdk";
 ```
 
 Import from CDN:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/qpub@latest/build/qpub.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@qpub/sdk@latest/build/qpub.umd.js"></script>
 ```
 
 ## Interacting with QPub
@@ -93,13 +93,13 @@ rest.channels
 
 ## React Integration
 
-QPub includes built-in React hooks and components for real-time socket connections. 
+QPub includes built-in React hooks and components for real-time socket connections.
 
 Use manual subscription with proper cleanup for reliable message handling:
 
 ```jsx
 import React, { useCallback, useEffect } from "react";
-import { SocketProvider, useChannel, useConnection, Message } from "qpub/react";
+import { SocketProvider, useChannel, useConnection, Message } from "@qpub/sdk/react";
 
 function App() {
     return (
@@ -111,28 +111,27 @@ function App() {
 
 function ChatRoom() {
     const { status } = useConnection();
-    const { status: channelStatus, publish, subscribe, unsubscribe } = useChannel("my-channel");
+    const { publish, subscribe, unsubscribe, ready } = useChannel("my-channel");
 
-    const handleMessage = useCallback((message) => {
+    const handleMessage = useCallback((message: Message) => {
         console.log("Received:", message);
     }, []);
 
     useEffect(() => {
-        if (channelStatus === "initialized") {
+        if (ready) {
             subscribe(handleMessage);
-        }
-        return () => unsubscribe();
-    }, [channelStatus, subscribe, unsubscribe, handleMessage]);
 
-    const ready = status === "connected" && 
-                  (channelStatus === "subscribed" || channelStatus === "subscribing");
+            return () => {
+                unsubscribe();
+            }
+        }
+    }, [channelStatus, subscribe, unsubscribe, handleMessage]);
 
     return (
         <div>
             <div>Connection: {status}</div>
-            <div>Channel: {channelStatus}</div>
-            <div>Ready: {ready ? "✅" : "⏳"}</div>
-            <button 
+            <div>Channel ready: {ready ? "✅" : "⏳"}</div>
+            <button
                 onClick={() => publish("Hello from Socket!")}
                 disabled={!ready}
             >
@@ -158,6 +157,15 @@ npm i
 ```
 
 Make your changes.
+
+## Test
+
+Write your tests, then run:
+
+```bash
+npm test
+```
+
 
 ## Build
 

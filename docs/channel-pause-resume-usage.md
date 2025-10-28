@@ -76,7 +76,7 @@ useEffect(() => {
 The SDK emits events when channels are paused or resumed:
 
 ```typescript
-import { ChannelEvents } from "qpub";
+import { ChannelEvents } from "@qpub/sdk";
 
 // Listen for pause events
 channel.on(ChannelEvents.PAUSED, (payload) => {
@@ -98,9 +98,9 @@ channel.on(ChannelEvents.RESUMED, (payload) => {
 ### Example 1: Basic Pause/Resume
 
 ```typescript
-import { Socket } from "qpub";
+import { QPub } from "@qpub/sdk";
 
-const socket = new Socket({
+const socket = new QPub.Socket({
     /* options */
 });
 await socket.connect();
@@ -211,7 +211,7 @@ channel.resume();
 ### Example 5: Event-Driven Pause Control
 
 ```typescript
-import { ChannelEvents } from "qpub";
+import { ChannelEvents } from "@qpub/sdk";
 
 const channel = socket.getChannel("chat");
 
