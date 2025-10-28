@@ -1,6 +1,6 @@
 {
     "name": "qpub",
-    "version": "2.0.0",
+    "version": "1.0.20",
     "description": "QPub JavaScript: A client library for real-time messaging on browsers, Node.js, and other platforms",
     "main": "build/qpub.cjs.js",
     "module": "build/qpub.esm.js",
