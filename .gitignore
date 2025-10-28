@@ -1,14 +1,7 @@
-.env
-.env.backup
-.env.production
-
 .DS_Store
+.swp
 .idea
-
 node_modules
 npm-debug.log
-
-yarn-error.log
-
-Homestead.json
-Homestead.yaml
+build/
+coverage/

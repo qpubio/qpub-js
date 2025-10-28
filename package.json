@@ -1,50 +1,90 @@
 {
-    "name": "pubq",
-    "version": "1.0.20",
-    "description": "PUBQ JavaScript SDK",
-    "main": "build/node/pubq.js",
-    "browser": "build/browser/pubq.js",
-    "scripts": {
-        "build": "rm -rf build/ && npm run build:node && npm run build:web",
-        "build:node": "tsc",
-        "build:web": "npx webpack && npx webpack --mode production"
-    },
-    "types": "./build/node/pubq.d.ts",
+    "name": "qpub",
+    "version": "2.0.0",
+    "description": "QPub JavaScript: A client library for real-time messaging on browsers, Node.js, and other platforms",
+    "main": "build/qpub.cjs.js",
+    "module": "build/qpub.esm.js",
+    "browser": "build/qpub.umd.js",
     "files": [
         "build/**",
         "src/**"
     ],
+    "scripts": {
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:ci": "jest --ci --coverage --watchAll=false",
+        "build": "rollup -c",
+        "lint": "tsc --noEmit",
+        "lint:fix": "prettier --write src/**/*.ts"
+    },
     "repository": {
         "type": "git",
-        "url": "git+ssh://git@github.com/pubqio/pubq-js.git"
+        "url": "git+https://github.com/qpubio/qpub-js.git"
     },
     "keywords": [
-        "pubq",
+        "qpub",
         "pubsub",
         "channels",
         "websocket",
         "realtime",
         "messaging",
-        "communication"
+        "communication",
+        "chat",
+        "events",
+        "notifications",
+        "react",
+        "hooks"
     ],
-    "author": "PUBQ Team",
-    "license": "ISC",
+    "author": "QPub",
+    "license": "MIT",
     "bugs": {
-        "url": "https://github.com/pubqio/pubq-js/issues"
+        "url": "https://github.com/qpubio/qpub-js/issues"
     },
-    "homepage": "https://pubq.dev",
-    "dependencies": {
-        "axios": "^1.5.0",
-        "eventemitter3": "^5.0.1",
-        "socketcluster-client": "^17.1.1"
-    },
+    "homepage": "https://github.com/qpubio/qpub-js#readme",
     "devDependencies": {
-        "ts-loader": "^9.4.4",
-        "typescript": "^5.2.2",
-        "webpack": "^5.80.0",
-        "webpack-cli": "^5.0.2"
+        "@rollup/plugin-commonjs": "^28.0.1",
+        "@rollup/plugin-node-resolve": "^15.3.0",
+        "@rollup/plugin-terser": "^0.4.4",
+        "@rollup/plugin-typescript": "^12.1.1",
+        "@types/react": "^19.1.8",
+        "@types/ws": "^8.5.12",
+        "@types/jest": "^29.5.12",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.2",
+        "jest-environment-jsdom": "^29.7.0",
+        "prettier": "^3.2.5",
+        "rollup": "^2.79.2",
+        "ts-loader": "^9.5.1",
+        "tslib": "^2.8.0",
+        "typedoc": "^0.26.10",
+        "typescript": "^5.6.3"
     },
-    "engines": {
-        "node": ">=14"
+    "dependencies": {
+        "ws": "^8.18.0"
+    },
+    "peerDependencies": {
+        "@types/react": ">=16.8.0",
+        "react": ">=16.8.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "@types/react": {
+            "optional": true
+        }
+    },
+    "exports": {
+        ".": {
+            "import": "./build/qpub.esm.js",
+            "require": "./build/qpub.cjs.js",
+            "types": "./build/qpub.d.ts"
+        },
+        "./react": {
+            "import": "./build/qpub-react.esm.js",
+            "require": "./build/qpub-react.cjs.js",
+            "types": "./build/react-integration/index.d.ts"
+        }
     }
 }

@@ -1,12 +1,12 @@
-# PUBQ JavaScript SDK
+# QPub JavaScript SDK
 
-[PUBQ](https://pubq.dev) is a pub/sub channels cloud and this is the official JavaScript client library including both real-time and REST interfaces.
+[QPub](https://qpub.io) is a pub/sub channels cloud and this is the official JavaScript client library including both real-time and REST interfaces.
 
-To meet PUBQ and see more info and examples, please read the [documentation](https://pubq.dev/docs).
+To meet QPub and see more info and examples, please read the [documentation](https://qpub.io/docs).
 
 # Getting Started
 
-Follow these steps to just start building with PUBQ in JavaScript or see the [Quickstart guide](https://pubq.dev/docs/getting-started/quickstart) which covers more programming languages.
+Follow these steps to just start building with QPub in JavaScript or see the [Quickstart guide](https://qpub.io/docs/getting-started/quickstart) which covers more programming languages.
 
 ## Install with package manager
 
@@ -15,42 +15,42 @@ Use any package manager like npm or yarn to install the JavaScript SDK.
 Npm:
 
 ```bash
-npm i pubq
+npm i qpub
 ```
 
 Yarn:
 
 ```bash
-yarn add pubq
+yarn add qpub
 ```
 
 Import as ES module:
 
 ```js
-import { Pubq } from "pubq";
+import { QPub, Message } from "qpub";
 ```
 
 Import from CDN:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/pubq@latest/build/browser/pubq.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qpub@latest/build/qpub.umd.js"></script>
 ```
 
-## Interacting with PUBQ
+## Interacting with QPub
 
-Get your application API key from [PUBQ dashboard](https://dashboard.pubq.dev) by [creating a new app](https://dashboard.pubq.dev/applications/create) or use existing one.
+Get your API key from [QPub dashboard](https://dashboard.qpub.io) by [creating a new project](https://dashboard.qpub.io/projects/create) or use existing one.
 
-Connect to PUBQ:
+Connect to QPub:
 
 ```js
-const realtime = new Pubq.RealTime({ key: "YOUR_API_KEY" });
+const socket = new QPub.Socket({ apiKey: "YOUR_API_KEY" });
 ```
 
 Subscribe to a channel and listen for any data publishing to receive:
 
 ```js
-let channel = realtime.channels.get("my-channel");
-channel.subscribe((message: any) => {
+let channel = socket.channels.get("my-channel");
+channel.subscribe((message: Message) => {
     console.log({ message });
 });
 ```
@@ -64,28 +64,104 @@ channel.publish("Hello!");
 Publish a message with REST interface:
 
 ```js
-const rest = new Pubq.REST({ key: "YOUR_API_KEY" });
+const rest = new QPub.Rest({ apiKey: "YOUR_API_KEY" });
 
 let channel = rest.channels.get("my-channel");
 
 channel.publish("Hello!");
 ```
 
+Publish batch messages:
+
+```js
+rest.channels
+    .publishBatch(
+        ["myChannel", "another-channel"],
+        [
+            { data: "Hello World 1", event: "fooEvent" },
+            { data: "Hello World 2", event: "barEvent" },
+            { data: "Hello World 3", event: "barEvent" },
+        ]
+    )
+    .then((result) => {
+        console.log(result);
+    })
+    .catch((err) => {
+        console.error(`Error: ${err}`);
+    });
+```
+
+## React Integration
+
+QPub includes built-in React hooks and components for real-time socket connections. 
+
+Use manual subscription with proper cleanup for reliable message handling:
+
+```jsx
+import React, { useCallback, useEffect } from "react";
+import { SocketProvider, useChannel, useConnection, Message } from "qpub/react";
+
+function App() {
+    return (
+        <SocketProvider options={{ apiKey: "YOUR_API_KEY" }}>
+            <ChatRoom />
+        </SocketProvider>
+    );
+}
+
+function ChatRoom() {
+    const { status } = useConnection();
+    const { status: channelStatus, publish, subscribe, unsubscribe } = useChannel("my-channel");
+
+    const handleMessage = useCallback((message) => {
+        console.log("Received:", message);
+    }, []);
+
+    useEffect(() => {
+        if (channelStatus === "initialized") {
+            subscribe(handleMessage);
+        }
+        return () => unsubscribe();
+    }, [channelStatus, subscribe, unsubscribe, handleMessage]);
+
+    const ready = status === "connected" && 
+                  (channelStatus === "subscribed" || channelStatus === "subscribing");
+
+    return (
+        <div>
+            <div>Connection: {status}</div>
+            <div>Channel: {channelStatus}</div>
+            <div>Ready: {ready ? "✅" : "⏳"}</div>
+            <button 
+                onClick={() => publish("Hello from Socket!")}
+                disabled={!ready}
+            >
+                Send Message
+            </button>
+        </div>
+    );
+}
+```
+
+See [React Documentation](src/react-integration/README.md) for complete guide.
+
 # Development
 
-Please, read the [contribution guide](https://pubq.dev/docs/basics/contribution).
+Please, read the [contribution guide](https://qpub.io/docs/basics/contribution).
 
 ## Install
 
 ```bash
-git clone git@github.com:pubqio/pubq-js.git
-cd ./pubq-js/
+git clone git@github.com:qpubio/qpub-js.git
+cd ./qpub-js/
 npm i
 ```
 
+Make your changes.
+
 ## Build
 
-To build umd bundles, run:
+To build commonjs, esm, and umd bundles, run:
 
 ```bash
 npm run build

@@ -1,0 +1,237 @@
+import React from "react";
+import { SocketChannel } from "../../core/channels/socket-channel";
+import {
+    ChannelEvents,
+    ChannelEvent,
+    ConnectionEvents,
+    ConnectionEvent,
+} from "../../types/events/constants";
+import { UseChannelReturn } from "../context/types";
+import { useSocketContext } from "../context/SocketContext";
+import { Message } from "../../types/protocol/messages";
+
+/**
+ * React hook that provides a thin wrapper around the core SocketChannel.
+ *
+ * This follows the SDK's design - no automatic subscriptions, just manual control.
+ * Use the subscribe() method to manually subscribe with your callback.
+ *
+ * Example usage (following SDK examples):
+ * ```
+ * const { status, subscribe, unsubscribe } = useChannel("my-channel");
+ *
+ * useEffect(() => {
+ *     if (status === "initialized") {
+ *         subscribe(handleMessage);
+ *     }
+ * }, [status, subscribe, handleMessage]);
+ * ```
+ */
+export function useChannel(channelName: string): UseChannelReturn {
+    const { socket } = useSocketContext();
+
+    const [channel, setChannel] = React.useState<SocketChannel | null>(null);
+    const [status, setStatus] = React.useState<ChannelEvent>("initialized");
+    const [error, setError] = React.useState<Error | null>(null);
+    const [paused, setPaused] = React.useState<boolean>(false);
+    const [connectionStatus, setConnectionStatus] =
+        React.useState<ConnectionEvent>("closed");
+
+    const ready = React.useMemo(() => {
+        return (
+            connectionStatus === "connected" &&
+            (status === "initialized" ||
+                status === "subscribing" ||
+                status === "subscribed")
+        );
+    }, [connectionStatus, status]);
+
+    // Set up channel and event listeners
+    React.useEffect(() => {
+        if (!socket) return;
+
+        // Get channel from manager (increments ref count in core)
+        const socketChannel = socket.channels.get(channelName);
+        setChannel(socketChannel);
+
+        const handleChannelSubscribing = () => setStatus("subscribing");
+        const handleChannelSubscribed = () => setStatus("subscribed");
+        const handleChannelUnsubscribed = () => setStatus("initialized");
+        const handleChannelFailed = (event: any) => setError(event.error);
+        const handleChannelPaused = () => setPaused(true);
+        const handleChannelResumed = () => setPaused(false);
+
+        socketChannel.on(ChannelEvents.SUBSCRIBING, handleChannelSubscribing);
+        socketChannel.on(ChannelEvents.SUBSCRIBED, handleChannelSubscribed);
+        socketChannel.on(ChannelEvents.UNSUBSCRIBED, handleChannelUnsubscribed);
+        socketChannel.on(ChannelEvents.FAILED, handleChannelFailed);
+        socketChannel.on(ChannelEvents.PAUSED, handleChannelPaused);
+        socketChannel.on(ChannelEvents.RESUMED, handleChannelResumed);
+
+        return () => {
+            // Remove event listeners
+            socketChannel.off(
+                ChannelEvents.SUBSCRIBING,
+                handleChannelSubscribing
+            );
+            socketChannel.off(
+                ChannelEvents.SUBSCRIBED,
+                handleChannelSubscribed
+            );
+            socketChannel.off(
+                ChannelEvents.UNSUBSCRIBED,
+                handleChannelUnsubscribed
+            );
+            socketChannel.off(ChannelEvents.FAILED, handleChannelFailed);
+            socketChannel.off(ChannelEvents.PAUSED, handleChannelPaused);
+            socketChannel.off(ChannelEvents.RESUMED, handleChannelResumed);
+
+            // Release channel reference (core handles ref counting and cleanup)
+            socket.channels.release(channelName);
+        };
+    }, [socket, channelName]);
+
+    // Set up connection listeners
+    React.useEffect(() => {
+        if (!socket) return;
+
+        // Check current connection state on mount (in case already connected)
+        const currentlyConnected = socket.connection.isConnected();
+        setConnectionStatus(currentlyConnected ? "connected" : "closed");
+
+        const handleConnectionOpened = () => setConnectionStatus("connected");
+        const handleConnectionClosed = () => setConnectionStatus("closed");
+        const handleConnectionFailed = () => setConnectionStatus("failed");
+
+        socket.connection.on(ConnectionEvents.OPENED, handleConnectionOpened);
+        socket.connection.on(ConnectionEvents.CLOSED, handleConnectionClosed);
+        socket.connection.on(ConnectionEvents.FAILED, handleConnectionFailed);
+
+        return () => {
+            socket.connection.off(
+                ConnectionEvents.OPENED,
+                handleConnectionOpened
+            );
+            socket.connection.off(
+                ConnectionEvents.CLOSED,
+                handleConnectionClosed
+            );
+            socket.connection.off(
+                ConnectionEvents.FAILED,
+                handleConnectionFailed
+            );
+        };
+    }, [socket]); // channelName is not needed - connection events aren't channel-specific
+
+    // Thin wrapper methods that just call the core SDK methods
+    const subscribe = React.useCallback(
+        async (
+            callback: (message: Message) => void,
+            options?: { event?: string; timeout?: number }
+        ) => {
+            if (!channel) throw new Error("Channel not available");
+            return channel.subscribe(callback, options);
+        },
+        [channel]
+    );
+
+    const unsubscribe = React.useCallback(
+        async (
+            callback?: (message: Message) => void,
+            options?: { event?: string; timeout?: number }
+        ) => {
+            if (!channel) return;
+            return channel.unsubscribe(callback, options);
+        },
+        [channel]
+    );
+
+    const publish = React.useCallback(
+        async (data: any, options?: { event?: string; alias?: string }) => {
+            if (!channel) throw new Error("Channel not available");
+            return channel.publish(data, options);
+        },
+        [channel]
+    );
+
+    const resubscribe = React.useCallback(async () => {
+        if (!channel) throw new Error("Channel not available");
+        return channel.resubscribe();
+    }, [channel]);
+
+    const isSubscribed = React.useCallback(() => {
+        return channel?.isSubscribed() ?? false;
+    }, [channel]);
+
+    const isPendingSubscribe = React.useCallback(() => {
+        return channel?.isPendingSubscribe() ?? false;
+    }, [channel]);
+
+    const setPendingSubscribe = React.useCallback(
+        (pending: boolean) => {
+            if (!channel) return;
+            channel.setPendingSubscribe(pending);
+        },
+        [channel]
+    );
+
+    const pause = React.useCallback(
+        (options?: { bufferMessages?: boolean }) => {
+            if (!channel) return;
+            channel.pause(options);
+        },
+        [channel]
+    );
+
+    const resume = React.useCallback(() => {
+        if (!channel) return;
+        channel.resume();
+    }, [channel]);
+
+    const isPaused = React.useCallback(() => {
+        return channel?.isPaused() ?? false;
+    }, [channel]);
+
+    const hasCallback = React.useCallback(() => {
+        return channel?.hasCallback() ?? false;
+    }, [channel]);
+
+    const clearBufferedMessages = React.useCallback(() => {
+        if (!channel) return;
+        channel.clearBufferedMessages();
+    }, [channel]);
+
+    const reset = React.useCallback(() => {
+        if (!channel) return;
+        channel.reset();
+    }, [channel]);
+
+    const getName = React.useCallback(() => {
+        return channel?.getName() ?? channelName;
+    }, [channel, channelName]);
+
+    return {
+        // States
+        channel,
+        status,
+        error,
+        paused,
+        ready,
+
+        // Core SDK methods (thin wrappers)
+        subscribe,
+        resubscribe,
+        unsubscribe,
+        publish,
+        isSubscribed,
+        isPendingSubscribe,
+        setPendingSubscribe,
+        pause,
+        resume,
+        isPaused,
+        hasCallback,
+        clearBufferedMessages,
+        reset,
+        getName,
+    };
+}
