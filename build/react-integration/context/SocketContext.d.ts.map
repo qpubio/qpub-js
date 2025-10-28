@@ -1,0 +1,1 @@
+{"version":3,"file":"SocketContext.d.ts","sourceRoot":"","sources":["../../../src/react-integration/context/SocketContext.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAC1B,OAAO,EAAE,MAAM,EAAE,MAAM,mBAAmB,CAAC;AAE3C,MAAM,WAAW,kBAAkB;IAC/B,MAAM,EAAE,MAAM,CAAC;IACf,UAAU,EAAE,MAAM,CAAC;CACtB;AAED,eAAO,MAAM,aAAa,0CAAuD,CAAC;AAElF,eAAO,MAAM,gBAAgB,QAAO,kBAQnC,CAAC"}
