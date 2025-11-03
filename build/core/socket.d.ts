@@ -6,7 +6,7 @@ export declare class Socket {
     private container;
     private abortController;
     readonly optionManager: IOptionManager;
-    readonly authManager: IAuthManager;
+    readonly auth: IAuthManager;
     readonly connection: IConnection;
     readonly channels: ISocketChannelManager;
     private logger;
