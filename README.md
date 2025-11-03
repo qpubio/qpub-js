@@ -144,6 +144,14 @@ function ChatRoom() {
 
 See [React Documentation](src/react-integration/README.md) for complete guide.
 
+## Token Authentication
+
+QPub provides three methods for secure token generation with different security levels. Learn more in the [Token Authentication Guide](docs/token-authentication.md):
+
+- `generateToken()` - Quick server-side token generation
+- `issueToken()` - Server-validated token generation  
+- `createTokenRequest()` + `requestToken()` - Secure client-server token exchange (recommended)
+
 # Development
 
 Please, read the [contribution guide](https://qpub.io/docs/basics/contribution).

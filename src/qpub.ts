@@ -4,7 +4,7 @@ import { Socket } from "./core/socket";
 // Re-export core types for convenience
 export type { Message } from "./types/protocol/messages";
 export type { Option } from "./types/config/options";
-export type { TokenOptions, TokenRequest, AuthResponse } from "./types/config/auth";
+export type { TokenOptions, TokenRequest, AuthResponse, Permission } from "./types/config/auth";
 
 // Re-export service interfaces for advanced usage and testing
 export type {

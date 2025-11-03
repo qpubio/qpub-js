@@ -13,7 +13,7 @@ import { IAuthManager } from "../../types/services/managers";
  */
 export function useAuth(): UseAuthReturn {
     const { socket } = useSocketContext();
-    const authManager: IAuthManager = socket.authManager;
+    const auth: IAuthManager = socket.auth;
 
     const [token, setToken] = React.useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = React.useState(false);
@@ -21,10 +21,10 @@ export function useAuth(): UseAuthReturn {
     const [error, setError] = React.useState<Error | null>(null);
 
     React.useEffect(() => {
-        if (!authManager) return;
+        if (!auth) return;
 
         // Check initial authentication state
-        const currentToken = authManager.getToken();
+        const currentToken = auth.getToken();
         setToken(currentToken);
         setIsAuthenticated(!!currentToken);
 
@@ -55,73 +55,73 @@ export function useAuth(): UseAuthReturn {
         };
 
         // Subscribe to auth events
-        authManager.on(AuthEvents.TOKEN_UPDATED, handleTokenUpdated);
-        authManager.on(AuthEvents.TOKEN_EXPIRED, handleTokenExpired);
-        authManager.on(AuthEvents.TOKEN_ERROR, handleTokenError);
-        authManager.on(AuthEvents.AUTH_ERROR, handleAuthError);
+        auth.on(AuthEvents.TOKEN_UPDATED, handleTokenUpdated);
+        auth.on(AuthEvents.TOKEN_EXPIRED, handleTokenExpired);
+        auth.on(AuthEvents.TOKEN_ERROR, handleTokenError);
+        auth.on(AuthEvents.AUTH_ERROR, handleAuthError);
 
         // Cleanup
         return () => {
-            authManager.off(AuthEvents.TOKEN_UPDATED, handleTokenUpdated);
-            authManager.off(AuthEvents.TOKEN_EXPIRED, handleTokenExpired);
-            authManager.off(AuthEvents.TOKEN_ERROR, handleTokenError);
-            authManager.off(AuthEvents.AUTH_ERROR, handleAuthError);
+            auth.off(AuthEvents.TOKEN_UPDATED, handleTokenUpdated);
+            auth.off(AuthEvents.TOKEN_EXPIRED, handleTokenExpired);
+            auth.off(AuthEvents.TOKEN_ERROR, handleTokenError);
+            auth.off(AuthEvents.AUTH_ERROR, handleAuthError);
         };
-    }, [authManager]);
+    }, [auth]);
 
     // Core authentication methods
     const authenticate =
         React.useCallback(async (): Promise<AuthResponse | null> => {
-            if (!authManager || isAuthenticating) return null;
+            if (!auth || isAuthenticating) return null;
 
             setIsAuthenticating(true);
             setError(null);
 
             try {
-                const response = await authManager.authenticate();
+                const response = await auth.authenticate();
                 return response;
             } catch (err) {
                 setError(err as Error);
                 setIsAuthenticating(false);
                 throw err;
             }
-        }, [authManager, isAuthenticating]);
+        }, [auth, isAuthenticating]);
 
     const clearToken = React.useCallback(() => {
-        if (!authManager) return;
-        authManager.clearToken();
-    }, [authManager]);
+        if (!auth) return;
+        auth.clearToken();
+    }, [auth]);
 
     const shouldAutoAuthenticate = React.useCallback(() => {
-        if (!authManager) return false;
-        return authManager.shouldAutoAuthenticate();
-    }, [authManager]);
+        if (!auth) return false;
+        return auth.shouldAutoAuthenticate();
+    }, [auth]);
 
     // URL and headers for authenticated requests
     const getAuthHeaders = React.useCallback(() => {
-        if (!authManager) throw new Error("AuthManager not available");
-        return authManager.getAuthHeaders();
-    }, [authManager]);
+        if (!auth) throw new Error("AuthManager not available");
+        return auth.getAuthHeaders();
+    }, [auth]);
 
     const getAuthQueryParams = React.useCallback(() => {
-        if (!authManager) throw new Error("AuthManager not available");
-        return authManager.getAuthQueryParams();
-    }, [authManager]);
+        if (!auth) throw new Error("AuthManager not available");
+        return auth.getAuthQueryParams();
+    }, [auth]);
 
     const getAuthenticateUrl = React.useCallback(
         (baseUrl: string) => {
-            if (!authManager) throw new Error("AuthManager not available");
-            return authManager.getAuthenticateUrl(baseUrl);
+            if (!auth) throw new Error("AuthManager not available");
+            return auth.getAuthenticateUrl(baseUrl);
         },
-        [authManager]
+        [auth]
     );
 
     const requestToken = React.useCallback(
         async (request: TokenRequest): Promise<AuthResponse> => {
-            if (!authManager) throw new Error("AuthManager not available");
-            return authManager.requestToken(request);
+            if (!auth) throw new Error("AuthManager not available");
+            return auth.requestToken(request);
         },
-        [authManager]
+        [auth]
     );
 
     return {

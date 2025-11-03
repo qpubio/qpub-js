@@ -116,7 +116,7 @@ describe('Socket and Rest Instance ID', () => {
             expect(socket.getInstanceId()).toBeDefined();
             expect(socket.connection).toBeDefined();
             expect(socket.channels).toBeDefined();
-            expect(socket.authManager).toBeDefined();
+            expect(socket.auth).toBeDefined();
             expect(socket.optionManager).toBeDefined();
         });
     });

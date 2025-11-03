@@ -456,9 +456,9 @@ export class AuthManager
                 this.logger.debug(`Token alias: ${options.alias}`);
             }
 
-            if (options.permissions !== undefined) {
-                payload.permissions = options.permissions;
-                this.logger.debug("Token permissions set");
+            if (options.permission !== undefined) {
+                payload.permission = options.permission;
+                this.logger.debug("Token permission set");
             }
 
             this.logger.debug(`Signing token (expires in ${expiresIn}s)`);
@@ -570,9 +570,9 @@ export class AuthManager
                 dataToSign += `.${options.alias}`;
                 this.logger.debug(`Token request alias: ${options.alias}`);
             }
-            if (options.permissions !== undefined) {
-                dataToSign += `.${JSON.stringify(options.permissions)}`;
-                this.logger.debug("Token request permissions set");
+            if (options.permission !== undefined) {
+                dataToSign += `.${JSON.stringify(options.permission)}`;
+                this.logger.debug("Token request permission set");
             }
 
             this.logger.debug("Signing token request data");
@@ -587,8 +587,8 @@ export class AuthManager
             if (options.alias !== undefined) {
                 request.alias = options.alias;
             }
-            if (options.permissions !== undefined) {
-                request.permissions = options.permissions;
+            if (options.permission !== undefined) {
+                request.permission = options.permission;
             }
 
             this.logger.info("Token request created successfully");
@@ -609,7 +609,7 @@ export class AuthManager
         this.logger.debug("Requesting token from QPub server", {
             kid: request.kid,
             hasAlias: !!request.alias,
-            hasPermissions: !!request.permissions,
+            hasPermission: !!request.permission,
         });
 
         try {

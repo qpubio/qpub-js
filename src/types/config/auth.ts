@@ -4,8 +4,20 @@
  * Types for authentication, tokens, and JWT handling.
  */
 
-interface Permissions {
-    [resource: string]: string[];
+/**
+ * Permission map for resource access control
+ * 
+ * @example
+ * ```typescript
+ * {
+ *   "flights.*": ["publish"],
+ *   "users.123.*": ["subscribe", "publish"],
+ *   "*": ["subscribe"]
+ * }
+ * ```
+ */
+export interface Permission {
+    [resourcePattern: string]: string[];
 }
 
 /**
@@ -22,7 +34,7 @@ export interface JWTHeader {
  */
 export interface JWTPayload {
     alias?: string;
-    permissions?: Permissions;
+    permission?: Permission;
     exp: number;
 }
 
@@ -30,9 +42,12 @@ export interface JWTPayload {
  * Options for token generation
  */
 export interface TokenOptions {
-    permissions?: Permissions; // Permissions
-    alias?: string; // Client identifier
-    expiresIn?: number; // Token expiration in seconds
+    /** Resource access permission map (e.g., "flights.*": ["publish"]) */
+    permission?: Permission;
+    /** Client identifier (e.g., user ID, session ID) */
+    alias?: string;
+    /** Token expiration time in seconds (default: 3600) */
+    expiresIn?: number;
 }
 
 /**
@@ -40,7 +55,7 @@ export interface TokenOptions {
  */
 export interface TokenRequest {
     kid: string; // API Key ID
-    permissions?: Permissions; // Permissions
+    permission?: Permission; // Permission map
     alias?: string; // Client identifier
     timestamp: number; // Request timestamp
     signature: string; // Request signature

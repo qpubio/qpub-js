@@ -2,7 +2,7 @@ import { Rest } from "./core/rest";
 import { Socket } from "./core/socket";
 export type { Message } from "./types/protocol/messages";
 export type { Option } from "./types/config/options";
-export type { TokenOptions, TokenRequest, AuthResponse } from "./types/config/auth";
+export type { TokenOptions, TokenRequest, AuthResponse, Permission } from "./types/config/auth";
 export type { IOptionManager, IAuthManager, IChannelManager, ISocketChannelManager, } from "./types/services/managers";
 export type { IWebSocketClient, IHttpClient, ILogger, ILoggerFactory, } from "./types/services/clients";
 export type { IConnection } from "./types/services/connection";

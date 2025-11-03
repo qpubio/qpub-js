@@ -4,6 +4,7 @@ import { uuidv7 } from "./shared";
 import { RestChannelManager } from "./managers/channel-manager";
 import {
     IOptionManager,
+    IAuthManager,
 } from "../types/services/managers";
 import {
     ILogger,
@@ -16,6 +17,7 @@ export class Rest {
     
     // Public API - expose through interfaces for clean contracts
     public readonly optionManager: IOptionManager;
+    public readonly auth: IAuthManager;
     public readonly channels: RestChannelManager;
     
     private logger: ILogger;
@@ -31,6 +33,7 @@ export class Rest {
         
         // Resolve main services
         this.optionManager = this.container.resolve<IOptionManager>("optionManager");
+        this.auth = this.container.resolve<IAuthManager>("authManager");
         this.channels = this.container.resolve<RestChannelManager>("restChannelManager");
         
         // Get logger for this component

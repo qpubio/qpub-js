@@ -19,7 +19,7 @@ export class Socket {
     
     // Public API - expose through interfaces for clean contracts
     public readonly optionManager: IOptionManager;
-    public readonly authManager: IAuthManager;
+    public readonly auth: IAuthManager;
     public readonly connection: IConnection;
     public readonly channels: ISocketChannelManager;
     
@@ -37,7 +37,7 @@ export class Socket {
         
         // Resolve main services
         this.optionManager = this.container.resolve<IOptionManager>("optionManager");
-        this.authManager = this.container.resolve<IAuthManager>("authManager");
+        this.auth = this.container.resolve<IAuthManager>("authManager");
         this.connection = this.container.resolve<IConnection>("connection");
         this.channels = this.container.resolve<ISocketChannelManager>("socketChannelManager");
         
@@ -65,7 +65,7 @@ export class Socket {
         // 3. Reset services in proper order - stop operations before clearing options
         this.connection.reset();
         this.channels.reset(); 
-        this.authManager.reset();
+        this.auth.reset();
         
         // 4. Only reset options after all operations are stopped
         this.optionManager.reset();

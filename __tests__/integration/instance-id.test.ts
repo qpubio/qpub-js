@@ -39,7 +39,7 @@ describe('Instance ID Integration', () => {
             expect(socket.getInstanceId()).toBe(instanceId);
             expect(socket.channels).toBeDefined();
             expect(socket.getInstanceId()).toBe(instanceId);
-            expect(socket.authManager).toBeDefined();
+            expect(socket.auth).toBeDefined();
             expect(socket.getInstanceId()).toBe(instanceId);
         });
 
