@@ -11,9 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Flexible JWT Authentication**: Enhanced JWT handling to support optional alias and permission fields, providing greater flexibility in token generation for various authentication scenarios.
 
+### Changed
+
+- **JWT Key Identifier**: Updated JWT key identifier from `kid` (Key ID) to `aki` (API Key Identifier) for better clarity and consistency across the codebase.
+
 ### Fixed
 
 - **JWT Validation**: Adjusted validation logic to correctly handle tokens without alias or permission fields, allowing broader authentication use cases.
+
+### Maintenance
+
+- Updated .npmrc configuration to include custom message format for version tagging.
 
 ### Documentation
 
