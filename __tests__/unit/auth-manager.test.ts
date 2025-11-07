@@ -8,12 +8,21 @@ describe('AuthManager', () => {
     const authManagerInstances: AuthManager[] = [];
 
     // Helper function to create valid JWT tokens for testing
-    function createValidJWT(): string {
-        const header = { alg: "HS256", typ: "JWT", kid: "test-key-id" };
-        const payload = { 
-            alias: "test-alias", 
+    function createValidJWT(options: { alias?: string; permission?: any } = {}): string {
+        const header = { alg: "HS256", typ: "JWT", aki: "test-key-id" };
+        const payload: any = { 
             exp: Math.floor(Date.now() / 1000) + 3600 // Expires in 1 hour
         };
+        
+        // Only include alias if provided
+        if (options.alias !== undefined) {
+            payload.alias = options.alias;
+        }
+        
+        // Only include permission if provided
+        if (options.permission !== undefined) {
+            payload.permission = options.permission;
+        }
         
         const encodedHeader = btoa(JSON.stringify(header));
         const encodedPayload = btoa(JSON.stringify(payload));
@@ -144,7 +153,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -194,7 +203,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -223,7 +232,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -384,6 +393,43 @@ describe('AuthManager', () => {
             const authManager = createAuthManager(optionManager, httpClient, logger);
 
             await expect(authManager.authenticate()).rejects.toThrow();
+        });
+
+        it('should accept tokens without alias field', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                authUrl: 'https://auth.example.com/token'
+            });
+
+            // Create token without alias field
+            const mockResponse: AuthResponse = {
+                token: createValidJWT() // No alias provided
+            };
+            httpClient.post.mockResolvedValue(mockResponse);
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            const result = await authManager.authenticate();
+
+            expect(result).toBe(mockResponse);
+            expect(authManager.isAuthenticated()).toBe(true);
+            expect(authManager.getCurrentToken()).toBe(mockResponse.token);
+        });
+
+        it('should accept tokens without permission field', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                authUrl: 'https://auth.example.com/token'
+            });
+
+            // Create token with alias but without permission
+            const mockResponse: AuthResponse = {
+                token: createValidJWT({ alias: 'test-user' }) // No permission provided
+            };
+            httpClient.post.mockResolvedValue(mockResponse);
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            const result = await authManager.authenticate();
+
+            expect(result).toBe(mockResponse);
+            expect(authManager.isAuthenticated()).toBe(true);
         });
     });
 });

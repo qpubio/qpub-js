@@ -1,6 +1,6 @@
 # QPub JavaScript SDK
 
-[QPub](https://qpub.io) is a pub/sub channels cloud and this is the official JavaScript client library including both real-time and REST interfaces.
+[QPub](https://qpub.io) is a pub/sub channels cloud. This is the official JavaScript client library, including both real-time and REST interfaces.
 
 To meet QPub and see more info and examples, please read the [documentation](https://qpub.io/docs).
 
@@ -149,7 +149,7 @@ See [React Documentation](src/react-integration/README.md) for complete guide.
 QPub provides three methods for secure token generation with different security levels. Learn more in the [Token Authentication Guide](docs/token-authentication.md):
 
 - `generateToken()` - Quick server-side token generation
-- `issueToken()` - Server-validated token generation  
+- `issueToken()` - Server-validated token generation
 - `createTokenRequest()` + `requestToken()` - Secure client-server token exchange (recommended)
 
 ## Contributing
