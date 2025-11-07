@@ -3,7 +3,7 @@ import { SocketChannel } from "../../src/core/channels/socket-channel";
 import {
     IWebSocketClient,
     ILogger,
-} from "../../src/interfaces/services.interface";
+} from "../../src/types/services/clients";
 
 describe("SocketChannelManager", () => {
     // Track instances for cleanup

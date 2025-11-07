@@ -94,6 +94,7 @@ describe("Connection", () => {
             has: jest.fn(),
             remove: jest.fn(),
             reset: jest.fn(),
+            release: jest.fn(),
             resubscribeAllChannels: jest.fn(),
             pendingSubscribeAllChannels: jest.fn(),
         } as jest.Mocked<ISocketChannelManager>;
@@ -422,9 +423,16 @@ describe("Connection", () => {
         });
 
         it("should send ping with unique ID and resolve with RTT", async () => {
-            const mockPerformanceNow = jest.spyOn(performance, "now");
-            mockPerformanceNow.mockReturnValueOnce(1000); // ping start
-            mockPerformanceNow.mockReturnValueOnce(1050); // pong received (50ms later)
+            // Use Object.defineProperty for Node 18+ compatibility
+            const originalNow = performance.now;
+            let callCount = 0;
+            Object.defineProperty(performance, "now", {
+                writable: true,
+                configurable: true,
+                value: jest.fn(() => {
+                    return callCount++ === 0 ? 1000 : 1050;
+                }),
+            });
 
             const sendSpy = jest.spyOn(mocks.mockSocket, "send");
 
@@ -457,7 +465,12 @@ describe("Connection", () => {
             const rtt = await pingPromise;
             expect(rtt).toBe(50);
 
-            mockPerformanceNow.mockRestore();
+            // Restore original performance.now
+            Object.defineProperty(performance, "now", {
+                writable: true,
+                configurable: true,
+                value: originalNow,
+            });
             sendSpy.mockRestore();
         });
 
@@ -484,24 +497,29 @@ describe("Connection", () => {
         });
 
         it("should handle multiple concurrent pings correctly", async () => {
-            const mockPerformanceNow = jest.spyOn(performance, "now");
+            // Use Object.defineProperty for Node 18+ compatibility
+            const originalNow = performance.now;
             const sendSpy = jest.spyOn(mocks.mockSocket, "send");
 
             // Mock timing in order: ping1 start, ping2 start, ping1 response, ping2 response
             let callCount = 0;
-            mockPerformanceNow.mockImplementation(() => {
-                switch (callCount++) {
-                    case 0:
-                        return 1000; // ping1 start
-                    case 1:
-                        return 2000; // ping2 start
-                    case 2:
-                        return 1030; // ping1 response (30ms RTT)
-                    case 3:
-                        return 2080; // ping2 response (80ms RTT)
-                    default:
-                        return Date.now();
-                }
+            Object.defineProperty(performance, "now", {
+                writable: true,
+                configurable: true,
+                value: jest.fn(() => {
+                    switch (callCount++) {
+                        case 0:
+                            return 1000; // ping1 start
+                        case 1:
+                            return 2000; // ping2 start
+                        case 2:
+                            return 1030; // ping1 response (30ms RTT)
+                        case 3:
+                            return 2080; // ping2 response (80ms RTT)
+                        default:
+                            return Date.now();
+                    }
+                }),
             });
 
             // Start multiple pings
@@ -542,7 +560,12 @@ describe("Connection", () => {
             expect(rtt1).toBe(30);
             expect(rtt2).toBe(80);
 
-            mockPerformanceNow.mockRestore();
+            // Restore original performance.now
+            Object.defineProperty(performance, "now", {
+                writable: true,
+                configurable: true,
+                value: originalNow,
+            });
             sendSpy.mockRestore();
         });
 

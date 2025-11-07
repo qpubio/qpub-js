@@ -1,6 +1,7 @@
 import { TestUtils, createTestSocketContainer, MockFactory } from '../src/testing';
 import { Connection } from '../src/core/connections/connection';
-import { IConnection, IAuthManager, IOptionManager } from '../src/interfaces/services.interface';
+import { IConnection } from '../src/types/services/connection';
+import { IAuthManager, IOptionManager } from '../src/types/services/managers';
 
 describe('Testing Utilities', () => {
     describe('MockFactory', () => {
