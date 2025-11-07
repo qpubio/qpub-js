@@ -94,6 +94,7 @@ describe("Connection", () => {
             has: jest.fn(),
             remove: jest.fn(),
             reset: jest.fn(),
+            release: jest.fn(),
             resubscribeAllChannels: jest.fn(),
             pendingSubscribeAllChannels: jest.fn(),
         } as jest.Mocked<ISocketChannelManager>;

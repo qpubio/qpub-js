@@ -1,6 +1,7 @@
 import { AuthManager } from '../../src/core/managers/auth-manager';
-import { IOptionManager, IHttpClient, ILogger } from '../../src/interfaces/services.interface';
-import { AuthResponse, TokenRequest } from '../../src/interfaces/token.interface';
+import { IOptionManager } from '../../src/types/services/managers';
+import { IHttpClient, ILogger } from '../../src/types/services/clients';
+import { AuthResponse, TokenRequest } from '../../src/types/config/auth';
 
 describe('AuthManager', () => {
     // Track AuthManager instances to clean them up
