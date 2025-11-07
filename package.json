@@ -1,6 +1,6 @@
 {
     "name": "@qpub/sdk",
-    "version": "2.0.4",
+    "version": "2.0.5",
     "description": "Real-time client for QPub cloud pub/sub service. Supports browsers, Node.js, Bun, and React.",
     "main": "build/qpub.cjs.js",
     "module": "build/qpub.esm.js",
