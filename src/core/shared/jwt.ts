@@ -9,8 +9,8 @@ export class JWT {
             const header = JSON.parse(atob(headerB64)) as JWTHeader;
             const payload = JSON.parse(atob(payloadB64)) as JWTPayload;
 
-            // Validate required fields
-            if (!header.kid || !payload.alias || !payload.exp) {
+            // Validate required fields (alias and permission are optional)
+            if (!header.kid || !payload.exp) {
                 throw new Error("Missing required JWT fields");
             }
 
