@@ -443,7 +443,7 @@ export class AuthManager
         }
 
         try {
-            const { apiKeyId, privateKey } = ApiKey.parse(apiKey);
+            const { apiKeyId, secretKey } = ApiKey.parse(apiKey);
             this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
             const expiresIn = options.expiresIn || 3600;
@@ -462,7 +462,7 @@ export class AuthManager
             }
 
             this.logger.debug(`Signing token (expires in ${expiresIn}s)`);
-            const token = await JWT.sign(payload, apiKeyId, privateKey);
+            const token = await JWT.sign(payload, apiKeyId, secretKey);
 
             this.logger.info("Token generated successfully");
             return token;
@@ -559,7 +559,7 @@ export class AuthManager
         }
 
         try {
-            const { apiKeyId, privateKey } = ApiKey.parse(apiKey);
+            const { apiKeyId, secretKey } = ApiKey.parse(apiKey);
             this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
             const timestamp = Math.floor(Date.now() / 1000);
@@ -576,7 +576,7 @@ export class AuthManager
             }
 
             this.logger.debug("Signing token request data");
-            const signature = await Crypto.hmacSign(dataToSign, privateKey);
+            const signature = await Crypto.hmacSign(dataToSign, secretKey);
 
             const request: TokenRequest = {
                 kid: apiKeyId,

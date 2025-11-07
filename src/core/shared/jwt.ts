@@ -32,7 +32,7 @@ export class JWT {
     static async sign(
         payload: JWTPayload,
         apiKeyId: string,
-        privateKey: string
+        secretKey: string
     ): Promise<string> {
         try {
             const header: JWTHeader = {
@@ -49,7 +49,7 @@ export class JWT {
 
             // Create signature
             const dataToSign = `${encodedHeader}.${encodedPayload}`;
-            const signature = await Crypto.hmacSign(dataToSign, privateKey);
+            const signature = await Crypto.hmacSign(dataToSign, secretKey);
             const encodedSignature = this.base64UrlEncode(
                 this.base64Decode(signature)
             );
