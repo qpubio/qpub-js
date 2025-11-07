@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write # Required for creating GitHub releases
       id-token: write # Required for npm provenance
 
     steps:
@@ -53,21 +53,17 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release ${{ github.ref_name }}
-            
-            View on npm: https://www.npmjs.com/package/@qpub/sdk
-            
-            ## Installation
-            ```bash
-            npm install @qpub/sdk@${{ github.ref_name }}
-            ```
-          draft: false
-          prerelease: false
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "Release ${{ github.ref_name }}" \
+            --notes "Release ${{ github.ref_name }}
+
+          View on npm: https://www.npmjs.com/package/@qpub/sdk
+
+          ## Installation
+          \`\`\`bash
+          npm install @qpub/sdk@${{ github.ref_name }}
+          \`\`\`"
 
