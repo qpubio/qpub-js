@@ -447,19 +447,17 @@ export class AuthManager
             this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
 
             const expiresIn = options.expiresIn || 3600;
+            const alias = options.alias ?? "";
+            const permission = options.permission ?? {};
+            
             const payload: JWTPayload = {
                 exp: Math.floor(Date.now() / 1000) + expiresIn,
+                alias,
+                permission,
             };
 
-            if (options.alias !== undefined) {
-                payload.alias = options.alias;
-                this.logger.debug(`Token alias: ${options.alias}`);
-            }
-
-            if (options.permission !== undefined) {
-                payload.permission = options.permission;
-                this.logger.debug("Token permission set");
-            }
+            this.logger.debug(`Token alias: ${alias || "(empty)"}`);
+            this.logger.debug(`Token permission: ${Object.keys(permission).length > 0 ? "set" : "(empty)"}`)
 
             this.logger.debug(`Signing token (expires in ${expiresIn}s)`);
             const token = await JWT.sign(payload, apiKeyId, secretKey);
