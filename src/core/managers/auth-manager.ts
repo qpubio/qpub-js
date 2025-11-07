@@ -579,7 +579,7 @@ export class AuthManager
             const signature = await Crypto.hmacSign(dataToSign, secretKey);
 
             const request: TokenRequest = {
-                kid: apiKeyId,
+                aki: apiKeyId,
                 timestamp,
                 signature,
             };
@@ -607,7 +607,7 @@ export class AuthManager
      */
     public async requestToken(request: TokenRequest): Promise<AuthResponse> {
         this.logger.debug("Requesting token from QPub server", {
-            kid: request.kid,
+            aki: request.aki,
             hasAlias: !!request.alias,
             hasPermission: !!request.permission,
         });
@@ -618,7 +618,7 @@ export class AuthManager
             const isSecure = this.optionManager.getOption("isSecure");
             const protocol = isSecure ? "https" : "http";
             const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
-            const url = `${baseUrl}/key/${request.kid}/token/request`;
+            const url = `${baseUrl}/key/${request.aki}/token/request`;
 
             this.logger.debug(`Sending token request to: ${url}`);
 

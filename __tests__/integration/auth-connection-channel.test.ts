@@ -93,6 +93,7 @@ describe('Integration: Component Interaction Tests', () => {
                 get: jest.fn(),
                 has: jest.fn(),
                 remove: jest.fn(),
+                release: jest.fn(),
                 reset: jest.fn(),
                 resubscribeAllChannels: jest.fn(),
                 pendingSubscribeAllChannels: jest.fn()
@@ -167,9 +168,9 @@ describe('Integration: Component Interaction Tests', () => {
                 reset: jest.fn()
             } as jest.Mocked<IOptionManager>;
 
-            // Create a valid JWT token for testing (must include kid, alias, and exp)
+            // Create a valid JWT token for testing (must include aki, alias, and exp)
             function createValidJWT() {
-                const header = { alg: 'HS256', typ: 'JWT', kid: 'test-key-id' };
+                const header = { alg: 'HS256', typ: 'JWT', aki: 'test-key-id' };
                 const payload = { 
                     alias: 'test-alias', 
                     exp: Math.floor(Date.now() / 1000) + 3600 

@@ -9,7 +9,7 @@ describe('AuthManager', () => {
 
     // Helper function to create valid JWT tokens for testing
     function createValidJWT(options: { alias?: string; permission?: any } = {}): string {
-        const header = { alg: "HS256", typ: "JWT", kid: "test-key-id" };
+        const header = { alg: "HS256", typ: "JWT", aki: "test-key-id" };
         const payload: any = { 
             exp: Math.floor(Date.now() / 1000) + 3600 // Expires in 1 hour
         };
@@ -153,7 +153,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -203,7 +203,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -232,7 +232,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                kid: 'test-key-id',
+                aki: 'test-key-id',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };

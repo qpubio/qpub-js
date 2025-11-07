@@ -26,7 +26,7 @@ export interface Permission {
 export interface JWTHeader {
     alg: string;
     typ: string;
-    kid: string;
+    aki: string;
 }
 
 /**
@@ -54,7 +54,7 @@ export interface TokenOptions {
  * Token request structure sent to authentication server
  */
 export interface TokenRequest {
-    kid: string; // API Key ID
+    aki: string; // API Key ID
     permission?: Permission; // Permission map
     alias?: string; // Client identifier
     timestamp: number; // Request timestamp

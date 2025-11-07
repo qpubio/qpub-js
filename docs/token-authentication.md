@@ -325,7 +325,7 @@ authenticateUser();
 
 ```typescript
 interface TokenRequest {
-    kid: string;           // API Key ID
+    aki: string;           // API Key ID
     timestamp: number;     // Request timestamp (Unix timestamp)
     signature: string;     // HMAC signature
     alias?: string;        // Client identifier
