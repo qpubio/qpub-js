@@ -2,6 +2,29 @@
 
 This document describes the automated build and publish process for the QPub SDK.
 
+## Quick Reference
+
+**Publishing a new version (recommended):**
+
+```bash
+# 1. Push to dev and verify CI passes
+git checkout dev && git push origin dev
+
+# 2. Create PR: dev → main on GitHub, then merge
+
+# 3. Release from main
+git checkout main && git pull origin main
+npm version patch  # or minor/major
+git push origin main && git push origin --tags
+
+# 4. Sync back to dev
+git checkout dev && git merge main && git push origin dev
+```
+
+**Result:** Automatic build → test → npm publish → GitHub release 🚀
+
+---
+
 ## Overview
 
 The SDK uses GitHub Actions for continuous integration and deployment. Build artifacts are **not** committed to the repository; instead, they are generated during the CI/CD pipeline and published to npm.
@@ -41,35 +64,87 @@ The SDK uses GitHub Actions for continuous integration and deployment. Build art
 
 ## Publishing a New Version
 
-### Step-by-Step Process
+### Recommended Workflow: Release from `main` Branch
 
-1. **Update the version** in `package.json`:
+This is the professional standard for production releases with proper review and branch management.
+
+#### Step-by-Step Process
+
+1. **Ensure dev branch is ready and CI passes**:
    ```bash
-   # For patch releases (bug fixes)
+   git checkout dev
+   git push origin dev
+   ```
+   - Go to [Actions tab](https://github.com/qpubio/qpub-js/actions) and verify CI passes
+   - All tests must pass before proceeding
+
+2. **Create Pull Request from dev to main**:
+   - Go to GitHub repository
+   - Click "Pull requests" → "New pull request"
+   - Set base: `main` ← compare: `dev`
+   - Review changes, add description
+   - Create and merge the PR (after review/approval if needed)
+
+3. **Switch to main and pull merged changes**:
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+4. **Create version tag** (automatically creates a commit):
+   ```bash
+   # For patch releases (bug fixes: 2.0.2 → 2.0.3)
    npm version patch
    
-   # For minor releases (new features, backward compatible)
+   # For minor releases (new features: 2.0.3 → 2.1.0)
    npm version minor
    
-   # For major releases (breaking changes)
+   # For major releases (breaking changes: 2.1.0 → 3.0.0)
    npm version major
    ```
+   - This updates `package.json`, creates a commit, and creates a git tag
 
-2. **Push the changes and tag**:
+5. **Push version commit and tag to main**:
    ```bash
-   git push origin dev
+   git push origin main
    git push origin --tags
    ```
+   - **This triggers the publish workflow!**
 
-3. **GitHub Actions will automatically**:
-   - Run all tests
-   - Build the packages
-   - Publish to npm
-   - Create a GitHub release
+6. **Sync main back to dev** (keep branches in sync):
+   ```bash
+   git checkout dev
+   git merge main
+   git push origin dev
+   ```
 
-4. **Monitor the workflow**:
-   - Go to the [Actions tab](https://github.com/qpubio/qpub-js/actions)
+7. **Monitor the publish workflow**:
+   - Go to [Actions tab](https://github.com/qpubio/qpub-js/actions)
    - Watch the "Publish to npm" workflow
+   - Verify it completes successfully
+
+### Alternative: Quick Release from `dev` Branch
+
+For faster iteration without PR overhead (use with caution):
+
+```bash
+git checkout dev
+npm version patch
+git push origin dev
+git push origin --tags
+```
+
+**Note:** While this works, releasing from `main` is the recommended approach for production SDKs.
+
+### What GitHub Actions Does Automatically
+
+When you push a version tag, the publish workflow:
+- ✅ Runs all tests
+- ✅ Runs type checking
+- ✅ Builds the packages
+- ✅ Verifies version matches tag
+- ✅ Publishes to npm with provenance
+- ✅ Creates a GitHub release
 
 ### Manual Testing Before Release
 
@@ -201,6 +276,22 @@ git push origin --tags
    - Failed tests
    - npm registry issues
 
+### GitHub Release Creation Fails
+
+**Error:** `Resource not accessible by integration`
+
+**Cause:** Insufficient permissions for creating releases
+
+**Solution:** The workflow needs `contents: write` permission. This should already be configured in `.github/workflows/publish.yml`:
+
+```yaml
+permissions:
+  contents: write  # Required for creating releases
+  id-token: write  # Required for npm provenance
+```
+
+If this error occurs, verify the permissions section in the publish workflow file.
+
 ### Build Artifacts Missing Locally
 
 This is expected! Build artifacts are not committed to git. To regenerate them:
@@ -233,6 +324,8 @@ npm run build
 2. Let CI handle all builds
 3. Review CI logs if your PR fails
 4. Run `npm run lint` and `npm test` before pushing
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for complete contribution guidelines.
 
 ### For Maintainers
 

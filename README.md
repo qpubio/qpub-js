@@ -152,49 +152,29 @@ QPub provides three methods for secure token generation with different security 
 - `issueToken()` - Server-validated token generation  
 - `createTokenRequest()` + `requestToken()` - Secure client-server token exchange (recommended)
 
-# Development
+## Contributing
 
-Please, read the [contribution guide](https://qpub.io/docs/basics/contribution).
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
-## Install
+- Development setup and workflow
+- Code standards and best practices
+- Testing guidelines
+- Pull request process
+- Release workflow (for maintainers)
+
+### Quick Start for Contributors
 
 ```bash
+# Clone and setup
 git clone git@github.com:qpubio/qpub-js.git
-cd ./qpub-js/
-npm i
-```
+cd qpub-js
+npm install
 
-Make your changes.
-
-## Test
-
-Write your tests, then run:
-
-```bash
+# Run tests
 npm test
-```
 
-## Build
-
-Build artifacts are generated automatically via GitHub Actions CI/CD. For local testing:
-
-```bash
+# Build locally
 npm run build
 ```
 
-**Note:** Build artifacts are not committed to git. They are generated during the CI/CD pipeline and published to npm. See [CI/CD Workflow Documentation](docs/ci-cd-workflow.md) for details.
-
-## Publishing a Release
-
-Releases are automated via GitHub Actions. To publish a new version:
-
-```bash
-# Update version (patch, minor, or major)
-npm version patch
-
-# Push changes and tags
-git push origin dev
-git push origin --tags
-```
-
-GitHub Actions will automatically build, test, and publish to npm. See [CI/CD Workflow Documentation](docs/ci-cd-workflow.md) for complete instructions.
+For detailed instructions, see the [Contributing Guide](CONTRIBUTING.md).
