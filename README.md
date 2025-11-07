@@ -174,11 +174,27 @@ Write your tests, then run:
 npm test
 ```
 
-
 ## Build
 
-To build commonjs, esm, and umd bundles, run:
+Build artifacts are generated automatically via GitHub Actions CI/CD. For local testing:
 
 ```bash
 npm run build
 ```
+
+**Note:** Build artifacts are not committed to git. They are generated during the CI/CD pipeline and published to npm. See [CI/CD Workflow Documentation](docs/ci-cd-workflow.md) for details.
+
+## Publishing a Release
+
+Releases are automated via GitHub Actions. To publish a new version:
+
+```bash
+# Update version (patch, minor, or major)
+npm version patch
+
+# Push changes and tags
+git push origin dev
+git push origin --tags
+```
+
+GitHub Actions will automatically build, test, and publish to npm. See [CI/CD Workflow Documentation](docs/ci-cd-workflow.md) for complete instructions.

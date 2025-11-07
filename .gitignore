@@ -4,3 +4,7 @@
 node_modules
 npm-debug.log
 coverage/
+
+# Build artifacts (built in CI/CD)
+build/
+*.tsbuildinfo

@@ -16,7 +16,8 @@
         "test:ci": "jest --ci --coverage --watchAll=false",
         "build": "rollup -c",
         "lint": "tsc --noEmit",
-        "lint:fix": "prettier --write src/**/*.ts"
+        "lint:fix": "prettier --write src/**/*.ts",
+        "prepublishOnly": "npm run lint && npm run test:ci && npm run build"
     },
     "repository": {
         "type": "git",

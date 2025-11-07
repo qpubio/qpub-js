@@ -1,0 +1,95 @@
+name: CI
+
+on:
+    push:
+        branches: [main, dev]
+    pull_request:
+        branches: [main, dev]
+
+jobs:
+    build-and-test:
+        name: Build and Test
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                node-version: [18.x, 20.x, 22.x]
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  cache: "npm"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Type check
+              run: npm run lint
+
+            - name: Build packages
+              run: npm run build
+
+            - name: Run tests
+              run: npm run test:ci
+
+            - name: Upload coverage reports
+              if: matrix.node-version == '20.x'
+              uses: codecov/codecov-action@v4
+              with:
+                  fail_ci_if_error: false
+              env:
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    verify-build-artifacts:
+        name: Verify Build Artifacts
+        runs-on: ubuntu-latest
+        needs: build-and-test
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20.x"
+                  cache: "npm"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build
+              run: npm run build
+
+            - name: Verify main bundle exists
+              run: |
+                  test -f build/qpub.cjs.js || (echo "Main CJS bundle missing" && exit 1)
+                  test -f build/qpub.esm.js || (echo "Main ESM bundle missing" && exit 1)
+                  test -f build/qpub.umd.js || (echo "Main UMD bundle missing" && exit 1)
+                  test -f build/qpub.d.ts || (echo "Main type definitions missing" && exit 1)
+
+            - name: Verify React bundle exists
+              run: |
+                  test -f build/qpub-react.cjs.js || (echo "React CJS bundle missing" && exit 1)
+                  test -f build/qpub-react.esm.js || (echo "React ESM bundle missing" && exit 1)
+                  test -f build/react-integration/index.d.ts || (echo "React type definitions missing" && exit 1)
+
+            - name: Check bundle sizes
+              run: |
+                  echo "Main CJS: $(wc -c < build/qpub.cjs.js) bytes"
+                  echo "Main ESM: $(wc -c < build/qpub.esm.js) bytes"
+                  echo "Main UMD: $(wc -c < build/qpub.umd.js) bytes"
+                  echo "React CJS: $(wc -c < build/qpub-react.cjs.js) bytes"
+                  echo "React ESM: $(wc -c < build/qpub-react.esm.js) bytes"
+
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: build-artifacts-node-20
+                  path: build/
+                  retention-days: 7
