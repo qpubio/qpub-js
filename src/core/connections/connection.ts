@@ -128,7 +128,7 @@ export class Connection
             // Create ping message
             const pingMessage: PingMessage = {
                 action: ActionType.PING,
-                timestamp: pingId
+                id: pingId
             };
 
             try {
@@ -270,7 +270,7 @@ export class Connection
 
     private handlePongResponse(message: IncomingMessage): void {
         const pongMessage = message as PongMessage;
-        const pingId = pongMessage.timestamp?.toString();
+        const pingId = pongMessage.id?.toString();
         
         if (!pingId) {
             this.logger.debug("Received pong without ping ID, ignoring");
