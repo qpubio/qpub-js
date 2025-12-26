@@ -1,15 +1,11 @@
 /**
  * Protocol Messages
- * 
+ *
  * Message interfaces for WebSocket and REST communication.
  * These define the structure of data exchanged between client and server.
  */
 
-import {
-    ActionType,
-    OutgoingAction,
-    IncomingAction,
-} from "./actions";
+import { ActionType, OutgoingAction, IncomingAction } from "./actions";
 
 //
 // Base message
@@ -139,13 +135,13 @@ export interface ErrorInfo {
 // Ping message
 export interface PingMessage extends IncomingMessage {
     action: ActionType.PING;
-    timestamp: number;
+    id: number; // Auto-incrementing ID for the ping
 }
 
 // Pong message
 export interface PongMessage extends IncomingMessage {
     action: ActionType.PONG;
-    timestamp: number;
+    id: number; // The ID of the ping that this pong is responding to
 }
 
 //
@@ -157,4 +153,3 @@ export interface RestPublishRequest {
     channels?: string[];
     messages: DataMessagePayload[];
 }
-

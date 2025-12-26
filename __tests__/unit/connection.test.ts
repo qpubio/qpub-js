@@ -447,13 +447,13 @@ describe("Connection", () => {
             const sentMessage = JSON.parse(sendSpy.mock.calls[0][0]);
             expect(sentMessage).toMatchObject({
                 action: 12,
-                timestamp: expect.any(Number),
+                id: expect.any(Number),
             });
 
             // Simulate server response
             const pongMessage = {
                 action: 13, // ActionType.PONG
-                timestamp: sentMessage.timestamp, // Echo back the ping ID
+                id: sentMessage.id, // Echo back the ping ID
             };
 
             // Trigger message handler (simulate receiving pong)
@@ -531,13 +531,13 @@ describe("Connection", () => {
             const ping2Message = JSON.parse(sendSpy.mock.calls[1][0]);
 
             // Verify different ping IDs
-            expect(ping1Message.timestamp).toBe(1); // First ping gets ID 1
-            expect(ping2Message.timestamp).toBe(2); // Second ping gets ID 2
+            expect(ping1Message.id).toBe(1); // First ping gets ID 1
+            expect(ping2Message.id).toBe(2); // Second ping gets ID 2
 
             // Respond to ping1 first
             const pong1Message = {
                 action: 13,
-                timestamp: ping1Message.timestamp, // Echo back ping1 ID
+                id: ping1Message.id, // Echo back ping1 ID
             };
             mocks.mockSocket.onmessage?.({
                 data: JSON.stringify(pong1Message),
@@ -546,7 +546,7 @@ describe("Connection", () => {
             // Respond to ping2 second
             const pong2Message = {
                 action: 13,
-                timestamp: ping2Message.timestamp, // Echo back ping2 ID
+                id: ping2Message.id, // Echo back ping2 ID
             };
             mocks.mockSocket.onmessage?.({
                 data: JSON.stringify(pong2Message),
@@ -595,7 +595,7 @@ describe("Connection", () => {
             // Send pong without ping ID
             const pongWithoutId = {
                 action: 13,
-                // missing timestamp (used as ping ID)
+                // missing id (used as ping ID)
             };
             mocks.mockSocket.onmessage?.({
                 data: JSON.stringify(pongWithoutId),
