@@ -170,7 +170,7 @@ describe('Integration: Component Interaction Tests', () => {
 
             // Create a valid JWT token for testing (must include aki, alias, and exp)
             function createValidJWT() {
-                const header = { alg: 'HS256', typ: 'JWT', aki: 'test-key-id' };
+                const header = { alg: 'HS256', typ: 'JWT', aki: 'key-1' };
                 const payload = { 
                     alias: 'test-alias', 
                     exp: Math.floor(Date.now() / 1000) + 3600 

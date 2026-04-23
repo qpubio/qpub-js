@@ -197,7 +197,7 @@ console.log('Issued token:', token);
 
 ### API Endpoint
 
-The SDK calls: `POST https://api.qpub.io/v1/key/{apiKeyId}/token/issue`
+The SDK calls: `POST https://api.qpub.io/v1/key/{apiKeyPublicId}/token/issue`
 
 ### When to Use
 
@@ -325,7 +325,7 @@ authenticateUser();
 
 ```typescript
 interface TokenRequest {
-    aki: string;           // API Key ID
+    aki: string;           // API key public ID
     timestamp: number;     // Request timestamp (Unix timestamp)
     signature: string;     // HMAC signature
     alias?: string;        // Client identifier

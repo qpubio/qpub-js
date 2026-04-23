@@ -1,9 +1,23 @@
 export class ApiKey {
-    static parse(apiKey: string): { apiKeyId: string; secretKey: string } {
-        const [apiKeyId, secretKey] = apiKey.split(":");
-        if (!apiKeyId || !secretKey) {
-            throw new Error("Invalid API key format");
+    static parse(apiKeyCredential: string): {
+        apiKeyPublicId: string;
+        apiKeySecret: string;
+    } {
+        const separatorIndex = apiKeyCredential.indexOf(":");
+        if (
+            separatorIndex <= 0 ||
+            separatorIndex !== apiKeyCredential.lastIndexOf(":") ||
+            separatorIndex === apiKeyCredential.length - 1
+        ) {
+            throw new Error("Invalid API key credential format");
         }
-        return { apiKeyId, secretKey };
+
+        const apiKeyPublicId = apiKeyCredential.slice(0, separatorIndex);
+        const apiKeySecret = apiKeyCredential.slice(separatorIndex + 1);
+
+        return {
+            apiKeyPublicId,
+            apiKeySecret,
+        };
     }
 }
