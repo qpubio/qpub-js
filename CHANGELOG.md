@@ -5,6 +5,22 @@ All notable changes to QPub JavaScript SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **API Key Terminology**: Renamed `apiKeyId`/`secretKey` to `apiKeyPublicId`/`apiKeySecret` across `ApiKey`, `AuthManager`, and `JWT` to better reflect the role of each credential component. The JWT `aki` header and `TokenRequest.aki` are now documented as the API key public ID.
+- **Canonical Token Request Signing**: `createTokenRequest()` now signs a canonical newline-delimited string (`aki=...\ntimestamp=...\nalias=...\npermission=...`) with deterministic, recursively key-sorted JSON for `permission`, replacing the previous dot-delimited concatenation. This produces stable, unambiguous signatures across clients.
+
+### Added
+
+- **Stricter API Key Credential Parsing**: `ApiKey.parse()` now rejects malformed credentials (missing public ID, missing secret, or extra `:` separators) with a clearer `Invalid API key credential format` error.
+- **`requestToken` Validation**: `requestToken()` now fails fast with `Invalid token request: aki is required` when `aki` is empty, avoiding a malformed request to the server.
+
+### Documentation
+
+- Updated Token Authentication Guide to use `apiKeyPublicId` terminology in the issue-token endpoint and `TokenRequest` interface description.
+
 ## [2.0.7] - 2025-11-07
 
 ### Added

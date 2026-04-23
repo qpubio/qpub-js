@@ -12,6 +12,7 @@ import { JWT } from "../shared/jwt";
 import { JWTPayload } from "../../types/config/auth";
 import {
     AuthResponse,
+    Permission,
     TokenOptions,
     TokenRequest,
 } from "../../types/config/auth";
@@ -443,8 +444,8 @@ export class AuthManager
         }
 
         try {
-            const { apiKeyId, secretKey } = ApiKey.parse(apiKey);
-            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
+            const { apiKeyPublicId, apiKeySecret } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key public id: ${apiKeyPublicId}`);
 
             const expiresIn = options.expiresIn || 3600;
             const payload: JWTPayload = {
@@ -462,7 +463,7 @@ export class AuthManager
             }
 
             this.logger.debug(`Signing token (expires in ${expiresIn}s)`);
-            const token = await JWT.sign(payload, apiKeyId, secretKey);
+            const token = await JWT.sign(payload, apiKeyPublicId, apiKeySecret);
 
             this.logger.info("Token generated successfully");
             return token;
@@ -494,15 +495,15 @@ export class AuthManager
         }
 
         try {
-            const { apiKeyId } = ApiKey.parse(apiKey);
-            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
+            const { apiKeyPublicId } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key public id: ${apiKeyPublicId}`);
 
             const host = this.optionManager.getOption("httpHost");
             const port = this.optionManager.getOption("httpPort");
             const isSecure = this.optionManager.getOption("isSecure");
             const protocol = isSecure ? "https" : "http";
             const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
-            const url = `${baseUrl}/key/${apiKeyId}/token/issue`;
+            const url = `${baseUrl}/key/${apiKeyPublicId}/token/issue`;
 
             this.logger.debug(`Issuing token from: ${url}`);
 
@@ -559,27 +560,29 @@ export class AuthManager
         }
 
         try {
-            const { apiKeyId, secretKey } = ApiKey.parse(apiKey);
-            this.logger.debug(`Parsed API key - keyId: ${apiKeyId}`);
+            const { apiKeyPublicId, apiKeySecret } = ApiKey.parse(apiKey);
+            this.logger.debug(`Parsed API key public id: ${apiKeyPublicId}`);
 
             const timestamp = Math.floor(Date.now() / 1000);
 
-            // Create signature data based on provided options
-            let dataToSign = `${apiKeyId}.${timestamp}`;
-            if (options.alias !== undefined) {
-                dataToSign += `.${options.alias}`;
+            if (options.alias) {
                 this.logger.debug(`Token request alias: ${options.alias}`);
             }
             if (options.permission !== undefined) {
-                dataToSign += `.${JSON.stringify(options.permission)}`;
                 this.logger.debug("Token request permission set");
             }
 
             this.logger.debug("Signing token request data");
-            const signature = await Crypto.hmacSign(dataToSign, secretKey);
+            const dataToSign = AuthManager.buildCanonicalString(
+                apiKeyPublicId,
+                timestamp,
+                options.alias,
+                options.permission
+            );
+            const signature = await Crypto.hmacSign(dataToSign, apiKeySecret);
 
             const request: TokenRequest = {
-                aki: apiKeyId,
+                aki: apiKeyPublicId,
                 timestamp,
                 signature,
             };
@@ -607,12 +610,19 @@ export class AuthManager
      */
     public async requestToken(request: TokenRequest): Promise<AuthResponse> {
         this.logger.debug("Requesting token from QPub server", {
-            aki: request.aki,
+            apiKeyPublicId: request.aki,
             hasAlias: !!request.alias,
             hasPermission: !!request.permission,
         });
 
         try {
+            if (!request.aki) {
+                return this.handleError(
+                    new Error("Invalid token request: aki is required"),
+                    "Token request failed"
+                );
+            }
+
             const host = this.optionManager.getOption("httpHost");
             const port = this.optionManager.getOption("httpPort");
             const isSecure = this.optionManager.getOption("isSecure");
@@ -695,5 +705,42 @@ export class AuthManager
     public getAbortSignal(): AbortSignal {
         this.logger.trace("getAbortSignal called");
         return this.abortController.signal;
+    }
+
+    private static sortKeysRecursive(value: unknown): unknown {
+        if (Array.isArray(value)) {
+            return value.map(AuthManager.sortKeysRecursive);
+        }
+        if (value !== null && typeof value === "object") {
+            const sorted: Record<string, unknown> = {};
+            for (const key of Object.keys(value as object).sort()) {
+                sorted[key] = AuthManager.sortKeysRecursive(
+                    (value as Record<string, unknown>)[key]
+                );
+            }
+            return sorted;
+        }
+        return value;
+    }
+
+    private static buildCanonicalString(
+        aki: string,
+        timestamp: number,
+        alias?: string,
+        permission?: Permission
+    ): string {
+        const lines: string[] = [
+            `aki=${aki}`,
+            `timestamp=${timestamp}`,
+        ];
+        if (alias) {
+            lines.push(`alias=${alias}`);
+        }
+        if (permission !== undefined) {
+            lines.push(
+                `permission=${JSON.stringify(AuthManager.sortKeysRecursive(permission))}`
+            );
+        }
+        return lines.join("\n");
     }
 }

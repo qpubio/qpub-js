@@ -2,6 +2,8 @@ import { AuthManager } from '../../src/core/managers/auth-manager';
 import { IOptionManager } from '../../src/types/services/managers';
 import { IHttpClient, ILogger } from '../../src/types/services/clients';
 import { AuthResponse, TokenRequest } from '../../src/types/config/auth';
+import { Crypto } from '../../src/core/shared/crypto';
+import { ApiKey } from '../../src/core/shared/api-key';
 
 describe('AuthManager', () => {
     // Track AuthManager instances to clean them up
@@ -9,7 +11,7 @@ describe('AuthManager', () => {
 
     // Helper function to create valid JWT tokens for testing
     function createValidJWT(options: { alias?: string; permission?: any } = {}): string {
-        const header = { alg: "HS256", typ: "JWT", aki: "test-key-id" };
+        const header = { alg: "HS256", typ: "JWT", aki: "key-1" };
         const payload: any = { 
             exp: Math.floor(Date.now() / 1000) + 3600 // Expires in 1 hour
         };
@@ -153,7 +155,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                aki: 'test-key-id',
+                aki: 'key-1',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -171,7 +173,7 @@ describe('AuthManager', () => {
 
             expect(httpClient.post).toHaveBeenCalledTimes(2);
             expect(httpClient.post).toHaveBeenNthCalledWith(2,
-                'https://api.example.com:443/v1/key/test-key-id/token/request',
+                'https://api.example.com:443/v1/key/key-1/token/request',
                 tokenRequest,
                 { 'Content-Type': 'application/json' }
             );
@@ -195,6 +197,28 @@ describe('AuthManager', () => {
     });
 
     describe('Token Request Flow', () => {
+        it('should issue token using only apiKeyPublicId in URL', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                apiKey: 'key-1:secret-1',
+                httpHost: 'api.example.com',
+                httpPort: 443,
+                isSecure: true
+            });
+
+            httpClient.post.mockResolvedValue({ token: createValidJWT() });
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            await authManager.issueToken();
+
+            expect(httpClient.post).toHaveBeenCalledWith(
+                'https://api.example.com:443/v1/key/key-1/token/issue',
+                {},
+                {
+                    Authorization: `Basic ${btoa('key-1:secret-1')}`,
+                }
+            );
+        });
+
         it('should request token successfully', async () => {
             const { optionManager, httpClient, logger } = createTestMocks({
                 httpHost: 'api.example.com',  // Correct: REST API host for token requests
@@ -203,7 +227,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                aki: 'test-key-id',
+                aki: 'key-1',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -216,12 +240,32 @@ describe('AuthManager', () => {
             const result = await authManager.requestToken(tokenRequest);
 
             expect(httpClient.post).toHaveBeenCalledWith(
-                'https://api.example.com:443/v1/key/test-key-id/token/request',
+                'https://api.example.com:443/v1/key/key-1/token/request',
                 tokenRequest,
                 { 'Content-Type': 'application/json' }
             );
             expect(result).toBe(mockResponse);
             expect(authManager.isAuthenticated()).toBe(true);
+        });
+
+        it('should fail when aki is missing', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                httpHost: 'api.example.com',
+                httpPort: 443,
+                isSecure: true
+            });
+
+            const tokenRequest: TokenRequest = {
+                aki: '',
+                signature: 'test-signature',
+                timestamp: Date.now()
+            };
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            await expect(authManager.requestToken(tokenRequest)).rejects.toThrow(
+                'Invalid token request: aki is required'
+            );
+            expect(httpClient.post).not.toHaveBeenCalled();
         });
 
         it('should handle token request errors', async () => {
@@ -232,7 +276,7 @@ describe('AuthManager', () => {
             });
 
             const tokenRequest: TokenRequest = {
-                aki: 'test-key-id',
+                aki: 'key-1',
                 signature: 'test-signature',
                 timestamp: Date.now()
             };
@@ -241,6 +285,42 @@ describe('AuthManager', () => {
             const authManager = createAuthManager(optionManager, httpClient, logger);
 
             await expect(authManager.requestToken(tokenRequest)).rejects.toThrow('Network error');
+        });
+    });
+
+    describe('API Key Parser and Canonical Signing', () => {
+        it('should parse api key credential in vNext format', () => {
+            expect(ApiKey.parse('key-1:secret-1')).toEqual({
+                apiKeyPublicId: 'key-1',
+                apiKeySecret: 'secret-1',
+            });
+        });
+
+        it('should reject malformed api key credentials', () => {
+            expect(() => ApiKey.parse('key-1')).toThrow('Invalid API key credential format');
+            expect(() => ApiKey.parse('key-1:secret-1:extra')).toThrow('Invalid API key credential format');
+            expect(() => ApiKey.parse(':secret-1')).toThrow('Invalid API key credential format');
+        });
+
+        it('should sign canonical token request payload without signature', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                apiKey: 'key-1:secret-1',
+            });
+            const hmacSpy = jest.spyOn(Crypto, 'hmacSign').mockResolvedValue('sig');
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            await authManager.createTokenRequest({
+                alias: 'client-1',
+                permission: { 'room.*': ['subscribe'] },
+            });
+
+            expect(hmacSpy).toHaveBeenCalledTimes(1);
+            const canonical = hmacSpy.mock.calls[0][0] as string;
+            expect(canonical).toMatch(
+                /^aki=key-1\ntimestamp=\d+\nalias=client-1\npermission=\{"room\.\*":\["subscribe"\]\}$/
+            );
+
+            hmacSpy.mockRestore();
         });
     });
 
