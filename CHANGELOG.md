@@ -5,7 +5,7 @@ All notable changes to QPub JavaScript SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.8] - 2026-04-23
+## [2.0.9] - 2026-04-23
 
 ### Changed
 
@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Updated Token Authentication Guide to use `apiKeyPublicId` terminology in the issue-token endpoint and `TokenRequest` interface description.
+
+## [2.0.8] - 2025-12-26
+
+### Changed
+
+- **Ping/Pong Message Identifier**: Renamed the `timestamp` field on `PingMessage` and `PongMessage` to `id`, an auto-incrementing identifier used to correlate pongs with their originating pings. This clarifies intent (the value is a correlation ID, not a wall-clock timestamp) and aligns the wire format with the server protocol.
+    - **Wire protocol change**: clients and servers exchanging ping/pong frames with older SDK versions will no longer correlate round-trip timings. Upgrade both ends together.
+- Minor formatting cleanup in `src/types/protocol/messages.ts` (import statement and trailing newline).
 
 ## [2.0.7] - 2025-11-07
 
@@ -203,6 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release of the QPub JavaScript client library.
 
+[2.0.9]: https://github.com/qpubio/qpub-js/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/qpubio/qpub-js/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/qpubio/qpub-js/compare/v2.0.6...v2.0.7
 [2.0.6]: https://github.com/qpubio/qpub-js/compare/v2.0.5...v2.0.6
