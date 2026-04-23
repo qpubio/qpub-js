@@ -288,6 +288,68 @@ describe('AuthManager', () => {
         });
     });
 
+    describe('Generate Token (JWT.sign)', () => {
+        it('should generate a JWT token using apiKeyPublicId and apiKeySecret', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                apiKey: 'key-1:secret-1',
+            });
+            const hmacSpy = jest
+                .spyOn(Crypto, 'hmacSign')
+                .mockResolvedValue(Buffer.from('signature-bytes').toString('base64'));
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+            const token = await authManager.generateToken({
+                expiresIn: 7200,
+                alias: 'user-1',
+                permission: { 'room.*': ['subscribe'] },
+            });
+
+            expect(hmacSpy).toHaveBeenCalledTimes(1);
+            expect(hmacSpy.mock.calls[0][1]).toBe('secret-1');
+
+            const [headerB64, payloadB64] = token.split('.');
+            const header = JSON.parse(
+                Buffer.from(headerB64, 'base64').toString('utf-8')
+            );
+            const payload = JSON.parse(
+                Buffer.from(payloadB64, 'base64').toString('utf-8')
+            );
+
+            expect(header).toEqual({ alg: 'HS256', typ: 'JWT', aki: 'key-1' });
+            expect(payload.alias).toBe('user-1');
+            expect(payload.permission).toEqual({ 'room.*': ['subscribe'] });
+            expect(payload.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
+
+            hmacSpy.mockRestore();
+        });
+
+        it('should fail generateToken when no apiKey is provided', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks();
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+
+            await expect(authManager.generateToken()).rejects.toThrow(
+                'API key is required'
+            );
+        });
+
+        it('should propagate signing errors from JWT.sign', async () => {
+            const { optionManager, httpClient, logger } = createTestMocks({
+                apiKey: 'key-1:secret-1',
+            });
+            const hmacSpy = jest
+                .spyOn(Crypto, 'hmacSign')
+                .mockRejectedValue(new Error('crypto down'));
+
+            const authManager = createAuthManager(optionManager, httpClient, logger);
+
+            await expect(authManager.generateToken()).rejects.toThrow(
+                /Failed to sign JWT: crypto down/
+            );
+
+            hmacSpy.mockRestore();
+        });
+    });
+
     describe('API Key Parser and Canonical Signing', () => {
         it('should parse api key credential in vNext format', () => {
             expect(ApiKey.parse('key-1:secret-1')).toEqual({
