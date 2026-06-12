@@ -56,9 +56,9 @@ The SDK uses GitHub Actions for continuous integration and deployment. Build art
 **What it does:**
 1. Runs all tests and type checking
 2. Builds the packages
-3. Verifies package.json version matches the git tag
-4. Publishes to npm with provenance
-5. Creates a GitHub Release
+3. Verifies `package.json` version matches the git tag (without the `v` prefix)
+4. Publishes to npm via Trusted Publishing (GitHub OIDC) with provenance
+5. Creates a GitHub Release with install instructions using the npm version
 
 **Duration:** ~2-3 minutes
 
@@ -167,23 +167,26 @@ npm run build
 ls -lh build/
 ```
 
-## NPM Token Setup (One-Time)
+## npm Trusted Publishing Setup (One-Time)
 
-To enable automated publishing, you need to configure an npm token as a GitHub secret:
+Publishing uses [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) via GitHub OIDC. No `NPM_TOKEN` or `NODE_AUTH_TOKEN` secret is required.
 
-1. **Generate an npm token**:
-   - Go to [npmjs.com](https://www.npmjs.com/)
-   - Navigate to Settings → Access Tokens
-   - Click "Generate New Token" → "Automation"
-   - Copy the token
+1. **Configure the trusted publisher on npm**:
+   - Log in at [npmjs.com](https://www.npmjs.com/) as a maintainer of `@qpub/sdk`
+   - Open the package → **Settings** → **Trusted Publisher**
+   - Add a **GitHub Actions** publisher:
+     - Repository: `qpubio/qpub-js`
+     - Workflow filename: `publish.yml`
+     - Environment: leave blank unless you use a GitHub Environment
 
-2. **Add token to GitHub**:
-   - Go to your repository on GitHub
-   - Navigate to Settings → Secrets and variables → Actions
-   - Click "New repository secret"
-   - Name: `NPM_TOKEN`
-   - Value: Paste your npm token
-   - Click "Add secret"
+2. **Verify workflow permissions** (already set in `.github/workflows/publish.yml`):
+   ```yaml
+   permissions:
+     contents: write  # GitHub releases
+     id-token: write  # npm OIDC + provenance
+   ```
+
+The publish step is `npm publish --provenance --access public` with no token env vars.
 
 ## Local Development
 
@@ -223,6 +226,7 @@ This provides a safety net if you accidentally run `npm publish` locally (though
 - Easier code reviews (only source changes)
 
 ### 3. **Security & Trust**
+- npm Trusted Publishing via GitHub OIDC (no long-lived npm tokens in CI)
 - npm provenance provides transparency
 - All releases go through CI (tests + builds)
 - No manual build/publish mistakes
@@ -271,8 +275,8 @@ git push origin --tags
 
 1. Check the workflow logs in GitHub Actions
 2. Common issues:
-   - Missing or expired `NPM_TOKEN` secret
-   - Version mismatch between tag and package.json
+   - Trusted Publisher not configured (or wrong repo/workflow name on npm)
+   - Version mismatch between tag and `package.json` (tag is `v1.2.3`, version is `1.2.3`)
    - Failed tests
    - npm registry issues
 
@@ -311,9 +315,10 @@ npm run build
 
 ### Publish Workflow Features
 
-- **Version validation**: Ensures package.json matches git tag
+- **Version validation**: Ensures `package.json` matches the tag (without the `v` prefix)
+- **npm Trusted Publishing**: Authenticates via GitHub OIDC (`id-token: write`)
 - **npm provenance**: Cryptographic proof of package origin
-- **Automatic releases**: Creates GitHub releases with changelog
+- **Automatic releases**: Creates GitHub releases with install instructions using the npm version (e.g. `@qpub/sdk@2.0.9`, not `@v2.0.9`)
 - **Test before publish**: Runs full test suite before deploying
 
 ## Best Practices
@@ -333,7 +338,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for complete contribution guidelines.
 2. Never manually edit version numbers
 3. Review CI results before merging PRs
 4. Monitor npm publish workflows
-5. Keep npm token secure and rotate periodically
+5. Keep the npm Trusted Publisher configuration current if the repo or workflow name changes
 
 ## Future Enhancements
 
@@ -349,6 +354,7 @@ Potential improvements to consider:
 ## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers)
 - [npm Provenance](https://docs.npmjs.com/generating-provenance-statements)
 - [Semantic Versioning](https://semver.org/)
 
