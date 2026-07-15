@@ -1,8 +1,6 @@
 // Main classes
 export { Socket } from "./socket";
 export { Rest } from "./rest";
-export { QueueWorker } from "./queue-worker";
-export type { QueueJob, QueueJobHandler, QueueWorkerOptions } from "./queue-worker";
 
 // Managers
 export * from "./managers";

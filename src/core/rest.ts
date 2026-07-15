@@ -2,9 +2,11 @@ import { Option } from "../types/config/options";
 import { ServiceContainer, bootstrapContainer } from "./bootstrap";
 import { uuidv7 } from "./shared";
 import { RestChannelManager } from "./managers/channel-manager";
+import { RestQueueManager } from "./managers/queue-manager";
 import {
     IOptionManager,
     IAuthManager,
+    IRestQueueManager,
 } from "../types/services/managers";
 import {
     ILogger,
@@ -19,6 +21,7 @@ export class Rest {
     public readonly optionManager: IOptionManager;
     public readonly auth: IAuthManager;
     public readonly channels: RestChannelManager;
+    public readonly queues: IRestQueueManager;
     
     private logger: ILogger;
 
@@ -35,6 +38,7 @@ export class Rest {
         this.optionManager = this.container.resolve<IOptionManager>("optionManager");
         this.auth = this.container.resolve<IAuthManager>("authManager");
         this.channels = this.container.resolve<RestChannelManager>("restChannelManager");
+        this.queues = this.container.resolve<RestQueueManager>("restQueueManager");
         
         // Get logger for this component
         const loggerFactory = this.container.resolve<ILoggerFactory>("loggerFactory");
@@ -48,6 +52,7 @@ export class Rest {
         
         // Reset all services in reverse dependency order
         this.channels.reset();
+        this.queues.reset();
         this.optionManager.reset();
         
         // Clear container instances to ensure fresh state

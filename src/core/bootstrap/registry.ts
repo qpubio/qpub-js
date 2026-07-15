@@ -8,6 +8,7 @@ import { Logger } from "../shared/logger";
 import { AuthManager } from "../managers/auth-manager";
 import { WebSocketClient } from "../connections/websocket-client";
 import { SocketChannelManager, RestChannelManager } from "../managers/channel-manager";
+import { RestQueueManager } from "../managers/queue-manager";
 import { Connection } from "../connections/connection";
 
 // Service Interfaces
@@ -180,6 +181,12 @@ export function registerRestServices(
         { dependencies: ["loggerFactory"] }
     );
 
+    container.register<ILogger>(
+        "restQueueLogger",
+        (c) => c.resolve<ILoggerFactory>("loggerFactory").createLogger("RestQueueManager"),
+        { dependencies: ["loggerFactory"] }
+    );
+
     // 4. Register managers with dependencies
     container.register<IAuthManager>(
         "authManager",
@@ -200,6 +207,18 @@ export function registerRestServices(
             c.resolve<ILogger>("restChannelLogger")
         ),
         { dependencies: ["httpClient", "authManager", "optionManager", "restChannelLogger"] }
+    );
+
+    container.register<RestQueueManager>(
+        "restQueueManager",
+        (c) => new RestQueueManager(
+            c.resolve<IHttpClient>("httpClient"),
+            c.resolve<IAuthManager>("authManager"),
+            c.resolve<IOptionManager>("optionManager"),
+            c.resolve<ILogger>("restQueueLogger"),
+            instanceId
+        ),
+        { dependencies: ["httpClient", "authManager", "optionManager", "restQueueLogger"] }
     );
 }
 

@@ -10,6 +10,7 @@ import {
 import { RestPublishRequest } from "../../types/protocol/messages";
 import { ChannelEvents } from "../../types/events/constants";
 import { PublishOptions } from "../../types/services/channel";
+import { buildRestBaseUrl } from "../shared/rest-url";
 
 export class RestChannel extends BaseChannel {
     private httpClient: IHttpClient;
@@ -42,13 +43,7 @@ export class RestChannel extends BaseChannel {
 
         try {
             const headers = this.authManager.getAuthHeaders();
-            const host = this.optionManager.getOption("httpHost");
-            const port = this.optionManager.getOption("httpPort");
-            const isSecure = this.optionManager.getOption("isSecure");
-            const protocol = isSecure ? "https" : "http";
-            const url = `${protocol}://${host}${
-                port ? `:${port}` : ""
-            }/v1/channel/${this.name}/messages`;
+            const url = `${buildRestBaseUrl(this.optionManager)}/channel/${this.name}/messages`;
 
             const requestPayload: RestPublishRequest = {
                 messages: [

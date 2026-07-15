@@ -120,6 +120,59 @@ export interface IChannelManager {
     reset(): void;
 }
 
+import {
+    EnqueueOptions,
+    EnqueueResult,
+    ListJobsOptions,
+    QueueConfig,
+    QueueJob,
+    QueueJobHandler,
+    RegisterWorkerOptions,
+    RunWorkerOptions,
+    UpdateQueueConfigOptions,
+    WorkerRegistration,
+} from "../protocol/queue";
+
+/**
+ * Interface for REST queue management
+ */
+export interface IRestQueueManager {
+    enqueue(
+        queueName: string,
+        payload: unknown,
+        opts?: EnqueueOptions
+    ): Promise<EnqueueResult>;
+
+    getJob(queueName: string, jobId: string): Promise<QueueJob>;
+
+    listJobs(queueName: string, opts?: ListJobsOptions): Promise<QueueJob[]>;
+
+    cancelJob(queueName: string, jobId: string): Promise<void>;
+
+    retryJob(queueName: string, jobId: string): Promise<void>;
+
+    getConfig(queueName: string): Promise<QueueConfig>;
+
+    updateConfig(
+        queueName: string,
+        opts: UpdateQueueConfigOptions
+    ): Promise<QueueConfig>;
+
+    registerWorker(opts: RegisterWorkerOptions): Promise<WorkerRegistration>;
+
+    heartbeat(workerId: string): Promise<WorkerRegistration>;
+
+    runWorker(
+        queueName: string,
+        handler: QueueJobHandler,
+        opts?: RunWorkerOptions
+    ): Promise<void>;
+
+    stopWorker(): void;
+
+    reset(): void;
+}
+
 /**
  * Interface for socket-specific channel management
  */
