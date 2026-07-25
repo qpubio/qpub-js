@@ -121,9 +121,12 @@ export interface IChannelManager {
 }
 
 import {
+    AckJobOptions,
     EnqueueOptions,
     EnqueueResult,
     ListJobsOptions,
+    NackJobOptions,
+    PullJobsOptions,
     QueueConfig,
     QueueJob,
     QueueJobHandler,
@@ -161,6 +164,12 @@ export interface IRestQueueManager {
     registerWorker(opts: RegisterWorkerOptions): Promise<WorkerRegistration>;
 
     heartbeat(workerId: string): Promise<WorkerRegistration>;
+
+    pull(queueName: string, opts?: PullJobsOptions): Promise<QueueJob[]>;
+
+    ack(queueName: string, jobId: string, opts: AckJobOptions): Promise<void>;
+
+    nack(queueName: string, jobId: string, opts: NackJobOptions): Promise<void>;
 
     runWorker(
         queueName: string,

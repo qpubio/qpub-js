@@ -138,6 +138,23 @@ export interface RunWorkerOptions {
     wait?: string;
 }
 
+export interface PullJobsOptions {
+    workerId?: string;
+    batchSize?: number;
+    wait?: string;
+}
+
+export interface AckJobOptions {
+    workerId: string;
+    result?: unknown;
+}
+
+export interface NackJobOptions {
+    workerId: string;
+    reason?: string;
+    retryDelay?: string;
+}
+
 export interface QueueConfig {
     name?: string;
     executionProfile?: string;

@@ -11,12 +11,15 @@ import {
     AckJobRequestWire,
     EnqueueJobRequestWire,
     EnqueueJobResponseWire,
+    AckJobOptions,
     EnqueueOptions,
     EnqueueResult,
     HeartbeatRequestWire,
     JobsResponseWire,
     ListJobsOptions,
+    NackJobOptions,
     NackJobRequestWire,
+    PullJobsOptions,
     PullJobsRequestWire,
     QueueConfig,
     QueueConfigWire,
@@ -185,6 +188,60 @@ export class RestQueueManager implements IRestQueueManager {
         return toWorkerRegistration(response);
     }
 
+    public async pull(
+        queueName: string,
+        opts?: PullJobsOptions
+    ): Promise<QueueJob[]> {
+        const pullBody: PullJobsRequestWire = {
+            worker_id: opts?.workerId ?? this.defaultWorkerId,
+            batch_size: opts?.batchSize ?? 1,
+            wait: opts?.wait ?? "20s",
+        };
+
+        const response = await this.httpClient.post<JobsResponseWire>(
+            `${this.baseUrl()}/queue/${queueName}/pull`,
+            pullBody,
+            this.authHeaders()
+        );
+
+        return (response.jobs ?? []).map(toQueueJob);
+    }
+
+    public async ack(
+        queueName: string,
+        jobId: string,
+        opts: AckJobOptions
+    ): Promise<void> {
+        const ackBody: AckJobRequestWire = {
+            worker_id: opts.workerId,
+            result: opts.result,
+        };
+
+        await this.httpClient.post(
+            `${this.baseUrl()}/queue/${queueName}/jobs/${jobId}/ack`,
+            ackBody,
+            this.authHeaders()
+        );
+    }
+
+    public async nack(
+        queueName: string,
+        jobId: string,
+        opts: NackJobOptions
+    ): Promise<void> {
+        const nackBody: NackJobRequestWire = {
+            worker_id: opts.workerId,
+            reason: opts.reason ?? "nacked",
+            retry_delay: opts.retryDelay,
+        };
+
+        await this.httpClient.post(
+            `${this.baseUrl()}/queue/${queueName}/jobs/${jobId}/nack`,
+            nackBody,
+            this.authHeaders()
+        );
+    }
+
     public async runWorker(
         queueName: string,
         handler: QueueJobHandler,
@@ -200,47 +257,24 @@ export class RestQueueManager implements IRestQueueManager {
 
         while (this.running) {
             try {
-                const pullBody: PullJobsRequestWire = {
-                    worker_id: workerId,
-                    batch_size: batchSize,
+                const jobs = await this.pull(queueName, {
+                    workerId,
+                    batchSize,
                     wait,
-                };
+                });
 
-                const response = await this.httpClient.post<JobsResponseWire>(
-                    `${this.baseUrl()}/queue/${queueName}/pull`,
-                    pullBody,
-                    this.authHeaders()
-                );
-
-                for (const wireJob of response.jobs ?? []) {
-                    const job = toQueueJob(wireJob);
-
+                for (const job of jobs) {
                     try {
                         const result = await handler(job);
-                        const ackBody: AckJobRequestWire = {
-                            worker_id: workerId,
-                            result,
-                        };
-
-                        await this.httpClient.post(
-                            `${this.baseUrl()}/queue/${queueName}/jobs/${job.id}/ack`,
-                            ackBody,
-                            this.authHeaders()
-                        );
+                        await this.ack(queueName, job.id, { workerId, result });
                     } catch (err) {
-                        const nackBody: NackJobRequestWire = {
-                            worker_id: workerId,
+                        await this.nack(queueName, job.id, {
+                            workerId,
                             reason:
                                 err instanceof Error
                                     ? err.message
                                     : "handler error",
-                        };
-
-                        await this.httpClient.post(
-                            `${this.baseUrl()}/queue/${queueName}/jobs/${job.id}/nack`,
-                            nackBody,
-                            this.authHeaders()
-                        );
+                        });
                     }
                 }
             } catch (error) {
