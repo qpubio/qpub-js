@@ -251,11 +251,23 @@ export class RestQueueManager implements IRestQueueManager {
         const batchSize = opts?.batchSize ?? 1;
         const pollIntervalMs = opts?.pollIntervalMs ?? 1000;
         const wait = opts?.wait ?? "20s";
+        const heartbeatIntervalMs = opts?.heartbeatIntervalMs ?? 20_000;
+        let lastHeartbeatAt = 0;
 
         this.running = true;
         this.logger.info(`Starting queue worker on ${queueName}`);
 
         while (this.running) {
+            const now = Date.now();
+            if (now - lastHeartbeatAt >= heartbeatIntervalMs) {
+                try {
+                    await this.heartbeat(workerId);
+                } catch {
+                    // Unregistered / anonymous worker ids are fine; presence is best-effort.
+                }
+                lastHeartbeatAt = now;
+            }
+
             try {
                 const jobs = await this.pull(queueName, {
                     workerId,

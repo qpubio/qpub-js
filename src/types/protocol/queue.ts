@@ -136,6 +136,8 @@ export interface RunWorkerOptions {
     batchSize?: number;
     pollIntervalMs?: number;
     wait?: string;
+    /** How often to call /workers/heartbeat while running. Default 20000. */
+    heartbeatIntervalMs?: number;
 }
 
 export interface PullJobsOptions {
