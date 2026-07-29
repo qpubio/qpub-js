@@ -15,6 +15,7 @@ import {
     DataMessagePayload,
     RestPublishRequest,
 } from "../../types/protocol/messages";
+import { buildRestBaseUrl } from "../shared/rest-url";
 
 export class SocketChannelManager
     implements ChannelManager, ISocketChannelManager
@@ -236,13 +237,7 @@ export class RestChannelManager implements ChannelManager {
         messages: DataMessagePayload[]
     ): Promise<T> {
         const headers = this.authManager.getAuthHeaders();
-        const host = this.optionManager.getOption("httpHost");
-        const port = this.optionManager.getOption("httpPort");
-        const isSecure = this.optionManager.getOption("isSecure");
-        const protocol = isSecure ? "https" : "http";
-        const url = `${protocol}://${host}${
-            port ? `:${port}` : ""
-        }/v1/channels/messages`;
+        const url = `${buildRestBaseUrl(this.optionManager)}/channels/messages`;
 
         const requestPayload: RestPublishRequest = {
             channels,

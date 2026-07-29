@@ -5,6 +5,24 @@ All notable changes to QPub JavaScript SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-29
+
+### Features
+
+- **RestQueueManager** — new class for programmatic queue management via REST, including listing queues, enqueuing jobs, and retrieving queue details
+- **RestQueueManager — ack/nack/pull** — added job acknowledgment, negative acknowledgment, and pulling capabilities for worker integration
+- **RestQueueManager — heartbeat** — added heartbeat functionality to keep job visibility leases alive during long processing
+- **QueueWorker class** — new `QueueWorker` class with related types for building external queue workers that pull, process, ack/nack, and maintain heartbeat leases
+
+### Chore
+
+- Updated Node.js version configuration and prepared npm for OIDC Trusted Publishing
+
+### Documentation
+
+- Updated CI/CD setup documentation for npm Trusted Publishing (OIDC-based, no token required)
+- Updated licensing information in CONTRIBUTING.md
+
 ## [2.0.9] - 2026-04-23
 
 ### Changed
@@ -211,6 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release of the QPub JavaScript client library.
 
+[2.1.0]: https://github.com/qpubio/qpub-js/compare/v2.0.9...v2.1.0
 [2.0.9]: https://github.com/qpubio/qpub-js/compare/v2.0.8...v2.0.9
 [2.0.8]: https://github.com/qpubio/qpub-js/compare/v2.0.7...v2.0.8
 [2.0.7]: https://github.com/qpubio/qpub-js/compare/v2.0.6...v2.0.7

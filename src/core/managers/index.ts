@@ -1,3 +1,4 @@
 export { AuthManager } from "./auth-manager";
 export { OptionManager } from "./option-manager";
-export { SocketChannelManager, RestChannelManager } from "./channel-manager"; 
+export { SocketChannelManager, RestChannelManager } from "./channel-manager";
+export { RestQueueManager } from "./queue-manager";

@@ -19,6 +19,7 @@ import {
 import { Crypto } from "../shared/crypto";
 import { ApiKey } from "../shared/api-key";
 import { AuthEvents } from "../../types/events/constants";
+import { buildRestBaseUrl } from "../shared/rest-url";
 
 export class AuthManager
     extends EventEmitter<AuthEventPayloads>
@@ -498,11 +499,7 @@ export class AuthManager
             const { apiKeyPublicId } = ApiKey.parse(apiKey);
             this.logger.debug(`Parsed API key public id: ${apiKeyPublicId}`);
 
-            const host = this.optionManager.getOption("httpHost");
-            const port = this.optionManager.getOption("httpPort");
-            const isSecure = this.optionManager.getOption("isSecure");
-            const protocol = isSecure ? "https" : "http";
-            const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
+            const baseUrl = buildRestBaseUrl(this.optionManager);
             const url = `${baseUrl}/key/${apiKeyPublicId}/token/issue`;
 
             this.logger.debug(`Issuing token from: ${url}`);
@@ -623,11 +620,7 @@ export class AuthManager
                 );
             }
 
-            const host = this.optionManager.getOption("httpHost");
-            const port = this.optionManager.getOption("httpPort");
-            const isSecure = this.optionManager.getOption("isSecure");
-            const protocol = isSecure ? "https" : "http";
-            const baseUrl = `${protocol}://${host}${port ? `:${port}` : ""}/v1`;
+            const baseUrl = buildRestBaseUrl(this.optionManager);
             const url = `${baseUrl}/key/${request.aki}/token/request`;
 
             this.logger.debug(`Sending token request to: ${url}`);

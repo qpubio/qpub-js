@@ -5,6 +5,21 @@ import { Socket } from "./core/socket";
 export type { Message } from "./types/protocol/messages";
 export type { Option } from "./types/config/options";
 export type { TokenOptions, TokenRequest, AuthResponse, Permission } from "./types/config/auth";
+export type {
+    QueueJob,
+    QueueJobHandler,
+    EnqueueOptions,
+    EnqueueResult,
+    RunWorkerOptions,
+    PullJobsOptions,
+    AckJobOptions,
+    NackJobOptions,
+    ListJobsOptions,
+    QueueConfig,
+    UpdateQueueConfigOptions,
+    RegisterWorkerOptions,
+    WorkerRegistration,
+} from "./types/protocol/queue";
 
 // Re-export service interfaces for advanced usage and testing
 export type {
@@ -12,6 +27,7 @@ export type {
     IAuthManager,
     IChannelManager,
     ISocketChannelManager,
+    IRestQueueManager,
 } from "./types/services/managers";
 export type {
     IWebSocketClient,
