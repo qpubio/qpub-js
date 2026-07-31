@@ -16,7 +16,7 @@ The pause/resume feature is **purely client-side** and requires no server protoc
 - The subscription remains active on the server
 - No additional network traffic is generated
 
-This approach follows industry standards (used by Ably and other established real-time platforms).
+This approach follows industry standards (used by established real-time platforms).
 
 ## API Reference
 
