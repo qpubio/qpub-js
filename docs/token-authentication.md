@@ -733,7 +733,7 @@ const rest = new Rest({
 
 ## Additional Resources
 
-- [QPub Dashboard](https://dashboard.qpub.io) - Manage API keys
+- [QPub Cloud](https://cloud.qpub.io) - Manage API keys
 - [Connection Events Usage](./connection-events-usage.md) - Handle auth events
 - [Instance ID Usage](./instance-id-usage.md) - Track instances
 - [Testing Best Practices](./testing-best-practices.md) - Test authentication flows

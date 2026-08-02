@@ -38,7 +38,7 @@ Import from CDN:
 
 ## Interacting with QPub
 
-Get your API key from [QPub dashboard](https://dashboard.qpub.io) by [creating a new project](https://dashboard.qpub.io/projects/create) or use existing one.
+Get your API key from [QPub Cloud](https://cloud.qpub.io) by [creating a new project](https://cloud.qpub.io/projects/create) or use existing one.
 
 Connect to QPub:
 
