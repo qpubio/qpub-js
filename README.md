@@ -1,6 +1,6 @@
 # QPub JavaScript SDK
 
-[QPub](https://qpub.io) is a pub/sub channels cloud. This is the official JavaScript client library, including both real-time and REST interfaces.
+[QPub](https://qpub.io) is a real-time cloud messaging platform (**Channels** for pub/sub, **Queues** for jobs). This is the official JavaScript client library, including both Socket and REST interfaces.
 
 To meet QPub and see more info and examples, please read the [documentation](https://qpub.io/docs).
 
